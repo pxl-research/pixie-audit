@@ -1,0 +1,33 @@
+services:
+  audit-db:
+    build:
+      context: ./audit-db
+    container_name: pixie-audit-db
+    environment:
+      POSTGRES_DB: audit
+      POSTGRES_USER: audit
+      POSTGRES_PASSWORD: audit
+    volumes:
+      - audit-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  audit-api:
+    build:
+      context: ./audit-api
+    container_name: pixie-audit-api
+    environment:
+      AUDIT_DB_URL: postgres://audit:audit@audit-db:5432/audit
+      LOG_LEVEL: info
+    depends_on:
+      audit-db:
+        condition: service_healthy
+    ports:
+      - "8019:8000"
+
+volumes:
+  audit-db-data:

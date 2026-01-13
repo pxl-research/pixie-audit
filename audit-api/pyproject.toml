@@ -1,0 +1,11 @@
+[project]
+name = "pixie-audit-api"
+version = "0.1.0"
+description = "Audit API for Pixie"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.30",
+  "asyncpg>=0.29",
+  "pydantic>=2.7",
+]
