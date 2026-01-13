@@ -1,7 +1,9 @@
 services:
   audit-db:
     build:
-      context: ./audit-db
+      context: .
+      dockerfile: infra/docker/Dockerfile.dev
+      target: audit-db
     container_name: pixie-audit-db
     environment:
       POSTGRES_DB: audit
@@ -18,7 +20,9 @@ services:
 
   audit-api:
     build:
-      context: ./audit-api
+      context: .
+      dockerfile: infra/docker/Dockerfile.dev
+      target: audit-api
     container_name: pixie-audit-api
     environment:
       AUDIT_DB_URL: postgres://audit:audit@audit-db:5432/audit

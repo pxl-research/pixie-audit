@@ -16,6 +16,13 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: pixie-audit-api
+            target: audit-api
+          - image: pixie-audit-db
+            target: audit-db
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,19 +37,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine image name
+      - name: Determine image owner
         id: image
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          repo_name="${GITHUB_REPOSITORY#*/}"
-          image="${owner}/${repo_name}"
-          echo "name=${image}" >> "$GITHUB_OUTPUT"
+          echo "owner=${owner}" >> "$GITHUB_OUTPUT"
 
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.owner }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
@@ -53,8 +58,9 @@ jobs:
         with:
           context: .
           file: infra/docker/Dockerfile.dev
+          target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.owner }}/${{ matrix.image }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.owner }}/${{ matrix.image }}:buildcache,mode=max

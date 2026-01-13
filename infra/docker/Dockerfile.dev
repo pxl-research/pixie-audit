@@ -1,0 +1,11 @@
+FROM python:3.12-slim AS audit-api
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+COPY audit-api/pyproject.toml audit-api/uv.lock ./
+RUN pip install --no-cache-dir uv && uv sync --frozen --no-dev
+COPY audit-api/app ./app
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM postgres:18-alpine AS audit-db
+COPY audit-db/init.sql /docker-entrypoint-initdb.d/001-init.sql
