@@ -47,10 +47,11 @@ async def post_event(
 
             if event.summary:
                 await conn.execute(
-                    "insert into audit.summaries (id, conversation_id, content, metadata) "
-                    "values ($1, $2, $3, $4)",
+                    "insert into audit.messages (id, conversation_id, role, content, metadata) "
+                    "values ($1, $2, $3, $4, $5)",
                     str(uuid4()),
                     event.conversation_id,
+                    "summary",
                     event.summary,
                     event.metadata or {},
                 )

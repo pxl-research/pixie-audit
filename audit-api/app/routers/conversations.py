@@ -67,7 +67,8 @@ async def list_summaries(
 ) -> list[SummaryOut]:
     sql = (
         "select id, conversation_id, content, created_at, metadata "
-        "from audit.summaries where conversation_id = $1 order by created_at asc"
+        "from audit.messages where conversation_id = $1 and role = 'summary' "
+        "order by created_at asc"
     )
     pool = request.app.state.db
     async with pool.acquire() as conn:

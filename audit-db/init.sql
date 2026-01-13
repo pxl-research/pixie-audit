@@ -11,15 +11,7 @@ create table audit.conversations (
 create table audit.messages (
   id uuid primary key,
   conversation_id uuid not null references audit.conversations(id),
-  role text not null check (role in ('user','assistant','system')),
-  content text not null,
-  created_at timestamptz not null default now(),
-  metadata jsonb not null default '{}'
-);
-
-create table audit.summaries (
-  id uuid primary key,
-  conversation_id uuid not null references audit.conversations(id),
+  role text not null check (role in ('user','assistant','system','summary')),
   content text not null,
   created_at timestamptz not null default now(),
   metadata jsonb not null default '{}'
@@ -27,6 +19,3 @@ create table audit.summaries (
 
 create index audit_messages_conversation_created_at_idx
   on audit.messages (conversation_id, created_at);
-
-create index audit_summaries_conversation_created_at_idx
-  on audit.summaries (conversation_id, created_at);
