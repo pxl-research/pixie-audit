@@ -1,11 +1,24 @@
+import json
+
 import asyncpg
 from fastapi import FastAPI
+
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    await conn.set_type_codec(
+        "json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
+    await conn.set_type_codec(
+        "jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
 
 
 async def init_db(app: FastAPI, dsn: str) -> None:
     if not dsn:
         raise RuntimeError("AUDIT_DB_URL is required")
-    app.state.db = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=5)
+    app.state.db = await asyncpg.create_pool(
+        dsn=dsn, min_size=1, max_size=5, init=_init_connection
+    )
 
 
 async def close_db(app: FastAPI) -> None:
