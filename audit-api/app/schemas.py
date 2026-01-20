@@ -1,12 +1,15 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
+Role = Literal["user", "assistant", "system", "summary"]
+
+
 class MessageIn(BaseModel):
-    role: str
+    role: Role
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
