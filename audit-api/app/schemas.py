@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -17,8 +17,7 @@ class MessageIn(BaseModel):
 class EventIn(BaseModel):
     conversation_id: UUID
     profile: str
-    messages: List[MessageIn] = Field(default_factory=list)
-    summary: Optional[str] = None
+    messages: List[MessageIn]
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 

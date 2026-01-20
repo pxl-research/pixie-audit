@@ -22,13 +22,13 @@ async def post_event(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> EventOut:
     _check_api_key(x_api_key)
-    if not event.messages and not event.summary:
+    if not event.messages:
         logger.warning(
-            "event rejected: no messages or summary (conversation_id=%s, profile=%s)",
+            "event rejected: no messages (conversation_id=%s, profile=%s)",
             event.conversation_id,
             event.profile,
         )
-        raise HTTPException(status_code=400, detail="no messages or summary")
+        raise HTTPException(status_code=400, detail="no messages")
 
     event_metadata = event.metadata or {}
     pool = request.app.state.db
@@ -52,17 +52,6 @@ async def post_event(
                     msg.role,
                     msg.content,
                     merged_metadata,
-                )
-
-            if event.summary:
-                await conn.execute(
-                    "insert into audit.messages (id, conversation_id, role, content, metadata) "
-                    "values ($1, $2, $3, $4, $5)",
-                    str(uuid4()),
-                    event.conversation_id,
-                    "summary",
-                    event.summary,
-                    event_metadata,
                 )
 
     return EventOut()
