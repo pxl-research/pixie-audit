@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.db import close_db, init_db
-from app.routers import conversations, events
+from app.routers import conversations, events, ui
 from app.settings import AUDIT_DB_URL, LOG_LEVEL
 
 logging.basicConfig(level=LOG_LEVEL.upper())
@@ -46,3 +46,4 @@ async def health(request: Request):
 
 app.include_router(events.router)
 app.include_router(conversations.router)
+app.include_router(ui.router)
