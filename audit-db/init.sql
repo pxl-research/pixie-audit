@@ -1,7 +1,7 @@
 create schema if not exists audit;
 
 create table audit.conversations (
-  id uuid primary key,
+  id text primary key,
   profile text not null,
   started_at timestamptz not null default now(),
   ended_at timestamptz,
@@ -10,7 +10,7 @@ create table audit.conversations (
 
 create table audit.messages (
   id uuid primary key,
-  conversation_id uuid not null references audit.conversations(id),
+  conversation_id text not null references audit.conversations(id),
   role text not null check (role in ('user','assistant','system','summary')),
   content text not null,
   created_at timestamptz not null default now(),

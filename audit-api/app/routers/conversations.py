@@ -1,5 +1,4 @@
 from datetime import datetime
-from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
 
@@ -47,12 +46,15 @@ async def list_conversations(
     return [ConversationOut(**dict(row)) for row in rows]
 
 
-@router.get("/conversations/{conversation_id}/messages", response_model=list[MessageOut])
+@router.get(
+    "/conversations/{conversation_id:path}/messages",
+    response_model=list[MessageOut],
+)
 async def list_messages(
-    conversation_id: UUID, request: Request
+    conversation_id: str, request: Request
 ) -> list[MessageOut]:
     sql = (
-        "select id, conversation_id, role, content, created_at, metadata "
+        "select id::text as id, conversation_id, role, content, created_at, metadata "
         "from audit.messages where conversation_id = $1 order by created_at asc"
     )
     pool = request.app.state.db
@@ -61,12 +63,15 @@ async def list_messages(
     return [MessageOut(**dict(row)) for row in rows]
 
 
-@router.get("/conversations/{conversation_id}/summaries", response_model=list[SummaryOut])
+@router.get(
+    "/conversations/{conversation_id:path}/summaries",
+    response_model=list[SummaryOut],
+)
 async def list_summaries(
-    conversation_id: UUID, request: Request
+    conversation_id: str, request: Request
 ) -> list[SummaryOut]:
     sql = (
-        "select id, conversation_id, content, created_at, metadata "
+        "select id::text as id, conversation_id, content, created_at, metadata "
         "from audit.messages where conversation_id = $1 and role = 'summary' "
         "order by created_at asc"
     )

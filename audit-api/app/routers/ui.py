@@ -426,7 +426,7 @@ async def logs_view() -> HTMLResponse:
       messagesEl.appendChild(loading);
 
       try {
-        const response = await fetch(`/conversations/${conv.id}/messages`);
+        const response = await fetch(`/conversations/${encodeURIComponent(conv.id)}/messages`);
         if (!response.ok) {
           throw new Error(`Server status ${response.status}`);
         }

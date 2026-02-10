@@ -1,13 +1,12 @@
-import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from app.schemas import EventIn, EventOut
+from app.adapters.audit_v1 import adapt_contract_event
+from app.schemas import ContractEventIn, EventOut
 from app.settings import AUDIT_API_KEY
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 
 def _check_api_key(x_api_key: str | None) -> None:
@@ -17,41 +16,34 @@ def _check_api_key(x_api_key: str | None) -> None:
 
 @router.post("/events", response_model=EventOut)
 async def post_event(
-    event: EventIn,
+    event: ContractEventIn,
     request: Request,
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> EventOut:
     _check_api_key(x_api_key)
-    if not event.messages:
-        logger.warning(
-            "event rejected: no messages (conversation_id=%s, profile=%s)",
-            event.conversation_id,
-            event.profile,
-        )
-        raise HTTPException(status_code=400, detail="no messages")
+    adapted_event = adapt_contract_event(event)
 
-    event_metadata = event.metadata or {}
+    event_metadata = adapted_event.metadata or {}
     pool = request.app.state.db
     async with pool.acquire() as conn:
         async with conn.transaction():
             await conn.execute(
                 "insert into audit.conversations (id, profile, metadata) "
                 "values ($1, $2, $3) on conflict (id) do nothing",
-                event.conversation_id,
-                event.profile,
-                event.metadata or {},
+                adapted_event.conversation_id,
+                adapted_event.profile,
+                adapted_event.metadata or {},
             )
 
-            for msg in event.messages:
-                merged_metadata = {**event_metadata, **(msg.metadata or {})}
+            for msg in adapted_event.messages:
                 await conn.execute(
                     "insert into audit.messages (id, conversation_id, role, content, metadata) "
                     "values ($1, $2, $3, $4, $5)",
                     str(uuid4()),
-                    event.conversation_id,
+                    adapted_event.conversation_id,
                     msg.role,
                     msg.content,
-                    merged_metadata,
+                    {**event_metadata, **(msg.metadata or {})},
                 )
 
     return EventOut()
