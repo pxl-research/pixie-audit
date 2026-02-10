@@ -28,7 +28,9 @@ async def list_conversations(
     normalized_location = location.strip() if location else None
     if normalized_location:
         params.append(normalized_location)
-        clauses.append(f"lower(trim(metadata->>'location')) = lower(trim(${len(params)}))")
+        clauses.append(
+            f"lower(trim(metadata->>'location')) = lower(trim(${len(params)}))"
+        )
     if from_ts:
         params.append(from_ts)
         clauses.append(f"started_at >= ${len(params)}")

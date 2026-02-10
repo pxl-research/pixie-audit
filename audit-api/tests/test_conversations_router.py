@@ -18,11 +18,7 @@ def _conversation_row() -> dict[str, object]:
 
 
 def test_list_conversations_applies_profile_filter_and_bounds() -> None:
-    conn = FakeConnection(
-        fetch_results=[
-            [_conversation_row()]
-        ]
-    )
+    conn = FakeConnection(fetch_results=[[_conversation_row()]])
     request = make_request(FakePool(conn=conn))
 
     output = asyncio.run(

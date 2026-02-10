@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
+
+CONVERSATION_ID = f"session-smoke-{int(time.time())}"
 
 
 def _api_key() -> str | None:
@@ -47,12 +50,13 @@ def _assert_health() -> None:
 
 def _assert_valid_event() -> None:
     payload = {
-        "conversation_id": "session-smoke",
+        "conversation_id": CONVERSATION_ID,
         "profile": "pixie-questioner",
         "messages": [
             {"role": "user", "content": "Hallo"},
             {"role": "assistant", "content": "Hi"},
         ],
+        "metadata": {"location": "Antwerpen"},
     }
     status, body = _request_json("POST", "/events", payload)
     assert status == 200, status
@@ -61,7 +65,7 @@ def _assert_valid_event() -> None:
 
 def _assert_invalid_event() -> None:
     payload = {
-        "conversation_id": "session-smoke",
+        "conversation_id": CONVERSATION_ID,
         "profile": "pixie-questioner",
         "messages": [{"role": "user", "content": "Hallo"}],
         "metadata": {"location": "Antwerpen", "extra": "x"},
@@ -84,17 +88,38 @@ def _assert_invalid_event() -> None:
 
 
 def _assert_messages_query() -> None:
-    status, body = _request_json("GET", "/conversations/session-smoke/messages")
+    status, body = _request_json("GET", f"/conversations/{CONVERSATION_ID}/messages")
     assert status == 200, status
     assert isinstance(body, list), type(body)
     assert len(body) >= 2, body
-    assert all(item.get("conversation_id") == "session-smoke" for item in body), body
+    assert all(item.get("conversation_id") == CONVERSATION_ID for item in body), body
+
+
+def _assert_conversations_location_query() -> None:
+    status, body = _request_json(
+        "GET", "/conversations?location=%20antwerpen%20&limit=200"
+    )
+    assert status == 200, status
+    assert isinstance(body, list), type(body)
+    assert any(item.get("id") == CONVERSATION_ID for item in body), body
+
+
+def _assert_conversations_date_query() -> None:
+    status, body = _request_json(
+        "GET",
+        "/conversations?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z&limit=200",
+    )
+    assert status == 200, status
+    assert isinstance(body, list), type(body)
+    assert any(item.get("id") == CONVERSATION_ID for item in body), body
 
 
 def main() -> None:
     _assert_health()
     _assert_valid_event()
     _assert_invalid_event()
+    _assert_conversations_location_query()
+    _assert_conversations_date_query()
     _assert_messages_query()
     print("audit event contract smoke test passed")
 
