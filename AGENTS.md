@@ -33,32 +33,57 @@ Contractinvarianten:
 
 ## Run & Validate (verplicht)
 
-Gebruik Docker Compose vanuit deze repo.
+Alles wordt in containers uitgevoerd.
+Gebruik geen host-level `uv`, `pytest`, `python`, `curl` of security tools.
+Gebruik Docker Compose (en voor Trivy een aparte Docker container).
+Als uitzondering niet expliciet in dit document staat, is host-uitvoering verboden.
+Commando's voor checks moeten starten met `docker compose ...` of `docker run ...`.
 
 ```bash
 # Stack bouwen en starten
 docker compose up -d --build
 
-# Health check
-curl -fsS http://localhost:8019/health
+# Health check (vanuit container naar service)
+docker compose exec -T audit-api uv run python -c "import urllib.request, json; print(json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=5).read().decode()))"
 
 # Python syntax check
-docker compose run --rm audit-api uv run python -m compileall app
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv run python -m compileall app tests"
+
+# Formatting check
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run black --check app tests"
+
+# Lint
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ruff check app tests"
+
+# Type check
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ty check"
+
+# Test suite
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv run pytest"
 ```
 
 Voer bij wijzigingen aan API/contract/DB ook een contract-smoke-test uit:
 
 ```bash
-# Geldige payload moet slagen
-curl -fsS -X POST http://localhost:8019/events \
-  -H 'Content-Type: application/json' \
-  --data '{"conversation_id":"session-123","profile":"pixie-questioner","messages":[{"role":"user","content":"Hallo"},{"role":"assistant","content":"Hi"}]}'
-
-# Ongeldige payload (extra metadata field) moet 422 geven
-curl -sS -o /tmp/audit-invalid.json -w '%{http_code}\n' -X POST http://localhost:8019/events \
-  -H 'Content-Type: application/json' \
-  --data '{"conversation_id":"session-123","profile":"pixie-questioner","messages":[{"role":"user","content":"Hallo"}],"metadata":{"location":"Antwerpen","extra":"x"}}'
+# Implementatie: audit-api/tests/smoke/audit_event_contract.py
+docker compose exec -T audit-api uv run python -m tests.smoke.audit_event_contract
 ```
+
+---
+
+## Testing Policy
+
+- Elke wijziging aan `app/schemas.py`, `app/adapters/*`, `app/routers/*` of DB-querylogica vereist bijhorende testupdates.
+- Bugfixes moeten een regressietest bevatten die het gewenste gedrag afdekt.
+- Security-gedrag rond auth en inputvalidatie moet expliciet getest blijven.
+- Nieuwe tests horen onder `audit-api/tests/`.
+
+Minimaal te behouden testfocus:
+
+- Contractvorm en validatie (`audit/v1`)
+- Adaptermapping contract -> intern model
+- Routergedrag voor persist/query flows
+- API-key gedrag (`401` bij foutieve sleutel)
 
 ---
 
@@ -67,23 +92,36 @@ curl -sS -o /tmp/audit-invalid.json -w '%{http_code}\n' -X POST http://localhost
 Bij elke wijziging met impact op inputvalidatie, query’s, auth of dependencies:
 
 ```bash
+# Security linting rules (ruff S)
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ruff check app --select S"
+
+# SAST scan (bandit)
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run bandit -r app"
+
 # Dependency vulnerabilities
-docker compose run --rm audit-api uv tool run pip-audit
-
-# Security linting (bandit)
-docker compose run --rm audit-api uv tool run bandit -r app
+docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run pip-audit"
 ```
 
-Optioneel (aanbevolen bij release of dependency-updates):
+`ruff --select S` draait op `app` (productiecode). Testcode blijft gedekt door gewone lint + tests.
+
+Aanbevolen extra bij release of dependency-updates:
 
 ```bash
-docker compose run --rm audit-api uv tool run ruff check app --select S
+docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest detect \
+  --source /repo \
+  --redact \
+  --no-banner \
+  --exit-code 1
 ```
 
-Als `trivy` lokaal beschikbaar is, voer bijkomend uit vanaf de repo-root:
+Trivy-scan altijd in container uitvoeren:
 
 ```bash
-trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --exit-code 1 .
+docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:latest fs \
+  --scanners vuln,misconfig,secret \
+  --severity HIGH,CRITICAL \
+  --exit-code 1 \
+  .
 ```
 
 Securityregels:
@@ -117,6 +155,8 @@ Securityregels:
 Een taak is pas klaar als:
 
 - relevante `Run & Validate` checks uitgevoerd zijn
+- `black --check`, `ruff check` en `ty check` groen zijn
+- `docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv run pytest"` groen is
 - relevante security gates uitgevoerd zijn
 - contractinvarianten behouden blijven
 - er geen onverklaarde regressies zijn in bestaande endpoints
