@@ -5,6 +5,7 @@ ENV PYTHONUNBUFFERED=1
 COPY audit-api/pyproject.toml audit-api/uv.lock ./
 RUN pip install --no-cache-dir uv && uv sync --frozen --no-dev
 COPY audit-api/app ./app
+COPY audit-api/tests ./tests
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM postgres:18-alpine AS audit-db

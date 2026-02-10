@@ -9,3 +9,8 @@ dependencies = [
   "asyncpg>=0.29",
   "pydantic>=2.7",
 ]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4",
+]
