@@ -50,9 +50,7 @@ async def list_conversations(
     "/conversations/{conversation_id:path}/messages",
     response_model=list[MessageOut],
 )
-async def list_messages(
-    conversation_id: str, request: Request
-) -> list[MessageOut]:
+async def list_messages(conversation_id: str, request: Request) -> list[MessageOut]:
     sql = (
         "select id::text as id, conversation_id, role, content, created_at, metadata "
         "from audit.messages where conversation_id = $1 order by created_at asc"
@@ -67,9 +65,7 @@ async def list_messages(
     "/conversations/{conversation_id:path}/summaries",
     response_model=list[SummaryOut],
 )
-async def list_summaries(
-    conversation_id: str, request: Request
-) -> list[SummaryOut]:
+async def list_summaries(conversation_id: str, request: Request) -> list[SummaryOut]:
     sql = (
         "select id::text as id, conversation_id, content, created_at, metadata "
         "from audit.messages where conversation_id = $1 and role = 'summary' "

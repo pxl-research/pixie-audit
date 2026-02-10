@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 AUDIT_EVENT_CONTRACT_VERSION = "audit-event-v1.0.0"
 
 ContractRole = Literal["user", "assistant", "summary"]

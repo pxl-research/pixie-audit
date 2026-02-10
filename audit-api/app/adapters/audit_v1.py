@@ -4,9 +4,7 @@ from app.schemas import ContractEventIn, EventIn, MessageIn
 
 
 def adapt_contract_event(event: ContractEventIn) -> EventIn:
-    event_metadata = (
-        event.metadata.model_dump() if event.metadata is not None else {}
-    )
+    event_metadata = event.metadata.model_dump() if event.metadata is not None else {}
     messages = [
         MessageIn(
             role=message.role,
@@ -21,4 +19,3 @@ def adapt_contract_event(event: ContractEventIn) -> EventIn:
         messages=messages,
         metadata=event_metadata,
     )
-

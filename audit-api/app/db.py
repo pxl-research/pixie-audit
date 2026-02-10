@@ -32,8 +32,7 @@ async def _column_data_type(
 
 
 async def _conversation_fk_name(conn: asyncpg.Connection) -> str | None:
-    return await conn.fetchval(
-        """
+    return await conn.fetchval("""
         select tc.constraint_name
         from information_schema.table_constraints tc
         join information_schema.key_column_usage kcu
@@ -44,16 +43,13 @@ async def _conversation_fk_name(conn: asyncpg.Connection) -> str | None:
           and tc.constraint_type = 'FOREIGN KEY'
           and kcu.column_name = 'conversation_id'
         limit 1
-        """
-    )
+        """)
 
 
 async def _migrate_conversation_id_columns(pool: asyncpg.Pool) -> None:
     async with pool.acquire() as conn:
         async with conn.transaction():
-            conversation_id_type = await _column_data_type(
-                conn, "conversations", "id"
-            )
+            conversation_id_type = await _column_data_type(conn, "conversations", "id")
             message_conversation_id_type = await _column_data_type(
                 conn, "messages", "conversation_id"
             )
