@@ -255,7 +255,13 @@ async def logs_view() -> HTMLResponse:
     <section class="layout">
       <aside class="panel sidebar">
         <div class="filters">
-          <label for="filter">Filter</label>
+          <label for="server-location">Location (server filter)</label>
+          <input id="server-location" type="text" placeholder="Bijv. Antwerpen" />
+          <label for="server-from">Vanaf (server filter)</label>
+          <input id="server-from" type="datetime-local" />
+          <label for="server-to">Tot (server filter)</label>
+          <input id="server-to" type="datetime-local" />
+          <label for="filter">Zoek lokaal in lijst</label>
           <input id="filter" type="text" placeholder="Zoek op profiel of conversation id" />
           <button id="refresh" type="button">Ververs lijst</button>
         </div>
@@ -279,6 +285,9 @@ async def logs_view() -> HTMLResponse:
     };
 
     const listEl = document.getElementById("conversation-list");
+    const serverLocationEl = document.getElementById("server-location");
+    const serverFromEl = document.getElementById("server-from");
+    const serverToEl = document.getElementById("server-to");
     const filterEl = document.getElementById("filter");
     const statusEl = document.getElementById("status");
     const messagesEl = document.getElementById("messages");
@@ -299,6 +308,27 @@ async def logs_view() -> HTMLResponse:
 
     function setStatus(text) {
       statusEl.textContent = text;
+    }
+
+    function localDateTimeToIso(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toISOString();
+    }
+
+    function conversationsUrl() {
+      const params = new URLSearchParams({ limit: "200" });
+      const location = serverLocationEl.value.trim();
+      if (location) params.set("location", location);
+
+      const fromIso = localDateTimeToIso(serverFromEl.value);
+      if (fromIso) params.set("from", fromIso);
+
+      const toIso = localDateTimeToIso(serverToEl.value);
+      if (toIso) params.set("to", toIso);
+
+      return `/conversations?${params.toString()}`;
     }
 
     function renderList() {
@@ -395,12 +425,17 @@ async def logs_view() -> HTMLResponse:
     async function loadConversations() {
       setStatus("Lijst laden...");
       try {
-        const response = await fetch("/conversations?limit=200");
+        const response = await fetch(conversationsUrl());
         if (!response.ok) {
           throw new Error(`Server status ${response.status}`);
         }
         const data = await response.json();
         state.conversations = data || [];
+        if (state.selectedId && !state.conversations.some((item) => item.id === state.selectedId)) {
+          state.selectedId = null;
+          setConversationHeader(null);
+          renderMessages([]);
+        }
         renderList();
         setStatus(`${state.conversations.length} conversaties geladen`);
       } catch (error) {
@@ -438,8 +473,17 @@ async def logs_view() -> HTMLResponse:
       }
     }
 
+    function loadConversationsOnEnter(event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      loadConversations();
+    }
+
     document.getElementById("refresh").addEventListener("click", loadConversations);
     filterEl.addEventListener("input", renderList);
+    serverLocationEl.addEventListener("keydown", loadConversationsOnEnter);
+    serverFromEl.addEventListener("keydown", loadConversationsOnEnter);
+    serverToEl.addEventListener("keydown", loadConversationsOnEnter);
 
     loadConversations();
   </script>
