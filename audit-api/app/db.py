@@ -93,6 +93,14 @@ async def _migrate_conversation_id_columns(pool: asyncpg.Pool) -> None:
                 )
 
 
+async def _ensure_location_filter_index(pool: asyncpg.Pool) -> None:
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "create index if not exists audit_conversations_location_norm_idx "
+            "on audit.conversations ((lower(trim(metadata->>'location'))))"
+        )
+
+
 async def init_db(app: FastAPI, dsn: str) -> None:
     if not dsn:
         raise RuntimeError("AUDIT_DB_URL is required")
@@ -100,6 +108,7 @@ async def init_db(app: FastAPI, dsn: str) -> None:
         dsn=dsn, min_size=1, max_size=5, init=_init_connection
     )
     await _migrate_conversation_id_columns(pool)
+    await _ensure_location_filter_index(pool)
     app.state.db = pool
 
 

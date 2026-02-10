@@ -11,6 +11,7 @@ router = APIRouter()
 async def list_conversations(
     request: Request,
     profile: str | None = None,
+    location: str | None = None,
     from_ts: datetime | None = Query(default=None, alias="from"),
     to_ts: datetime | None = Query(default=None, alias="to"),
     limit: int = 50,
@@ -24,6 +25,10 @@ async def list_conversations(
     if profile:
         params.append(profile)
         clauses.append(f"profile = ${len(params)}")
+    normalized_location = location.strip() if location else None
+    if normalized_location:
+        params.append(normalized_location)
+        clauses.append(f"lower(trim(metadata->>'location')) = lower(trim(${len(params)}))")
     if from_ts:
         params.append(from_ts)
         clauses.append(f"started_at >= ${len(params)}")

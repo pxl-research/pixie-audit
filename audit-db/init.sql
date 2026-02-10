@@ -19,3 +19,6 @@ create table audit.messages (
 
 create index audit_messages_conversation_created_at_idx
   on audit.messages (conversation_id, created_at);
+
+create index audit_conversations_location_norm_idx
+  on audit.conversations ((lower(trim(metadata->>'location'))));
