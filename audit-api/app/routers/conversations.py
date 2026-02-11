@@ -1,10 +1,11 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 
+from app.auth import require_read_auth
 from app.schemas import ConversationOut, MessageOut, SummaryOut
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_read_auth)])
 
 
 @router.get("/conversations", response_model=list[ConversationOut])

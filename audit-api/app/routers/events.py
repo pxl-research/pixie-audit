@@ -1,17 +1,12 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, Request
 
+from app.auth import require_ingest_auth
 from app.adapters.audit_v1 import adapt_contract_event
 from app.schemas import ContractEventIn, EventOut
-from app.settings import AUDIT_API_KEY
 
 router = APIRouter()
-
-
-def _check_api_key(x_api_key: str | None) -> None:
-    if AUDIT_API_KEY and x_api_key != AUDIT_API_KEY:
-        raise HTTPException(status_code=401, detail="invalid api key")
 
 
 @router.post("/events", response_model=EventOut)
@@ -20,7 +15,7 @@ async def post_event(
     request: Request,
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> EventOut:
-    _check_api_key(x_api_key)
+    require_ingest_auth(request=request, x_api_key=x_api_key)
     adapted_event = adapt_contract_event(event)
 
     event_metadata = adapted_event.metadata or {}

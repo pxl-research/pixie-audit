@@ -1,11 +1,16 @@
-from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+
+from app.auth import is_read_authenticated_request
 
 router = APIRouter()
 
 
 @router.get("/logs", response_class=HTMLResponse)
-async def logs_view() -> HTMLResponse:
+async def logs_view(request: Request) -> Response:
+    if not is_read_authenticated_request(request):
+        return RedirectResponse(url="/login", status_code=303)
+
     html = """<!doctype html>
 <html lang="nl">
 <head>
