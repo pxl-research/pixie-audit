@@ -5,10 +5,12 @@ services:
       dockerfile: infra/docker/Dockerfile.dev
       target: audit-db
     container_name: pixie-audit-db
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: audit
-      POSTGRES_USER: audit
-      POSTGRES_PASSWORD: audit
+      POSTGRES_DB: ${POSTGRES_DB:-audit}
+      POSTGRES_USER: ${POSTGRES_USER:-audit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-audit}
     volumes:
       - audit-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -24,17 +26,19 @@ services:
       dockerfile: infra/docker/Dockerfile.dev
       target: audit-api
     container_name: pixie-audit-api
+    env_file:
+      - .env
     environment:
-      AUDIT_DB_URL: postgres://audit:audit@audit-db:5432/audit
-      LOG_LEVEL: info
-      AUDIT_INGEST_API_KEY: audit-dev-ingest-key
-      AUDIT_READ_API_KEY: audit-dev-read-key
-      AUDIT_AUTH_USER: audit-admin
-      AUDIT_AUTH_PASSWORD_HASH: '$$argon2id$$v=19$$m=65536,t=3,p=4$$7z/TbODs8007D/82hiXneg$$W3YBAqS7tOwuL1ug/CEQ2vy9CcVr4r3z0ueXP4FVD88'
-      AUDIT_SESSION_SECRET: audit-dev-session-secret-change-me
-      AUDIT_SESSION_TTL_SECONDS: "1800"
-      AUDIT_ALLOW_UNAUTHENTICATED_READS: "false"
-      AUDIT_SESSION_COOKIE_SECURE: "false"
+      AUDIT_DB_URL: ${AUDIT_DB_URL:-postgres://audit:audit@audit-db:5432/audit}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUDIT_INGEST_API_KEY: ${AUDIT_INGEST_API_KEY:?AUDIT_INGEST_API_KEY is required}
+      AUDIT_READ_API_KEY: ${AUDIT_READ_API_KEY:?AUDIT_READ_API_KEY is required}
+      AUDIT_AUTH_USER: ${AUDIT_AUTH_USER:?AUDIT_AUTH_USER is required}
+      AUDIT_AUTH_PASSWORD_HASH: ${AUDIT_AUTH_PASSWORD_HASH:?AUDIT_AUTH_PASSWORD_HASH is required}
+      AUDIT_SESSION_SECRET: ${AUDIT_SESSION_SECRET:?AUDIT_SESSION_SECRET is required}
+      AUDIT_SESSION_TTL_SECONDS: ${AUDIT_SESSION_TTL_SECONDS:-1800}
+      AUDIT_ALLOW_UNAUTHENTICATED_READS: ${AUDIT_ALLOW_UNAUTHENTICATED_READS:-false}
+      AUDIT_SESSION_COOKIE_SECURE: ${AUDIT_SESSION_COOKIE_SECURE:-true}
     depends_on:
       audit-db:
         condition: service_healthy
