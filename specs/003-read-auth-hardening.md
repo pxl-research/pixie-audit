@@ -1,7 +1,50 @@
 # Spec 003 - Read Auth Hardening Voor Logs En Query Endpoints
 
 ## Status
-Proposed
+Implemented
+
+## Beslissingen
+
+- `/logs` zonder auth redirectt naar `/login`.
+- Harde key-cutover: `AUDIT_API_KEY` fallback is verwijderd.
+- Sessiemodel: stateless signed cookie (`audit_session`).
+- Login rate limiting: 5 mislukte pogingen per 15 minuten per `ip+username`.
+- Startup policy: fail fast bij ontbrekende verplichte auth-config.
+
+## Implementatie
+
+- Geïmplementeerd op: 2026-02-11
+- Commits:
+  - `c5c460e` (`feat(auth): enforce split ingest/read auth with session login`)
+  - `8b5f2ef` (`test(auth): add auth unit, route, and smoke coverage`)
+  - `a3a2908` (`chore(security): add validation workflow and non-root container hardening`)
+
+## Implementatiebewijs
+
+- Backend auth primitives en dependencies:
+  - `audit-api/app/auth.py`
+  - `audit-api/app/settings.py`
+  - `audit-api/app/main.py`
+- Routerbescherming en auth endpoints:
+  - `audit-api/app/routers/events.py`
+  - `audit-api/app/routers/conversations.py`
+  - `audit-api/app/routers/ui.py`
+  - `audit-api/app/routers/auth.py`
+- Testdekking:
+  - `audit-api/tests/test_auth.py`
+  - `audit-api/tests/test_auth_router.py`
+  - `audit-api/tests/test_route_auth.py`
+  - `audit-api/tests/test_events_router.py`
+  - `audit-api/tests/smoke/audit_event_contract.py`
+  - `audit-api/tests/smoke/auth_login_flow.py`
+- Operationele verankering:
+  - `.github/workflows/validate.yml`
+  - `docs/runbooks/auth-rotation.md`
+- Containerized checks uitgevoerd en groen:
+  - health, compileall, black, ruff, ty, pytest
+  - smoke: contract + auth login flow
+  - security baseline: `ruff --select S`, bandit, pip-audit
+  - release scans: gitleaks en trivy
 
 ## Probleem
 
@@ -93,11 +136,7 @@ Gebruik een combinatie van:
 - `AUDIT_SESSION_SECRET`: secret voor session signing.
 - `AUDIT_SESSION_TTL_SECONDS`: default `1800`.
 - `AUDIT_ALLOW_UNAUTHENTICATED_READS`: default `false` (alleen lokaal expliciet `true`).
-
-Backward compatibility:
-
-- `AUDIT_API_KEY` blijft tijdelijk ondersteund als fallback voor ingest key.
-- Deprecatiepad documenteren; later verwijderen in een volgende spec.
+- `AUDIT_SESSION_COOKIE_SECURE`: default `true`.
 
 ## Technisch Ontwerp
 
