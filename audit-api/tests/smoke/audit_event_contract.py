@@ -9,32 +9,38 @@ import urllib.request
 CONVERSATION_ID = f"session-smoke-{int(time.time())}"
 
 
-def _api_key() -> str | None:
-    return os.getenv("SMOKE_API_KEY") or os.getenv("AUDIT_API_KEY")
+def _ingest_api_key() -> str | None:
+    return os.getenv("SMOKE_INGEST_API_KEY") or os.getenv("AUDIT_INGEST_API_KEY")
 
 
-def _base_headers() -> dict[str, str]:
+def _read_api_key() -> str | None:
+    return os.getenv("SMOKE_READ_API_KEY") or os.getenv("AUDIT_READ_API_KEY")
+
+
+def _base_headers(api_key: str | None) -> dict[str, str]:
     headers: dict[str, str] = {}
-    api_key = _api_key()
     if api_key:
         headers["X-API-Key"] = api_key
     return headers
 
 
 def _request_json(
-    method: str, path: str, payload: dict | None = None
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    headers: dict[str, str] | None = None,
 ) -> tuple[int, dict]:
     base_url = os.getenv("SMOKE_BASE_URL", "http://localhost:8000").rstrip("/")
     data = None
-    headers = _base_headers()
+    final_headers = dict(headers or {})
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
+        final_headers["Content-Type"] = "application/json"
 
     request = urllib.request.Request(
         f"{base_url}{path}",
         data=data,
-        headers=headers,
+        headers=final_headers,
         method=method,
     )
     with urllib.request.urlopen(request, timeout=10) as response:
@@ -58,7 +64,12 @@ def _assert_valid_event() -> None:
         ],
         "metadata": {"location": "Antwerpen"},
     }
-    status, body = _request_json("POST", "/events", payload)
+    status, body = _request_json(
+        "POST",
+        "/events",
+        payload,
+        headers=_base_headers(_ingest_api_key()),
+    )
     assert status == 200, status
     assert body == {"status": "ok"}, body
 
@@ -74,7 +85,10 @@ def _assert_invalid_event() -> None:
     request = urllib.request.Request(
         f"{base_url}/events",
         data=json.dumps(payload).encode("utf-8"),
-        headers={**_base_headers(), "Content-Type": "application/json"},
+        headers={
+            **_base_headers(_ingest_api_key()),
+            "Content-Type": "application/json",
+        },
         method="POST",
     )
     try:
@@ -88,7 +102,11 @@ def _assert_invalid_event() -> None:
 
 
 def _assert_messages_query() -> None:
-    status, body = _request_json("GET", f"/conversations/{CONVERSATION_ID}/messages")
+    status, body = _request_json(
+        "GET",
+        f"/conversations/{CONVERSATION_ID}/messages",
+        headers=_base_headers(_read_api_key()),
+    )
     assert status == 200, status
     assert isinstance(body, list), type(body)
     assert len(body) >= 2, body
@@ -97,7 +115,9 @@ def _assert_messages_query() -> None:
 
 def _assert_conversations_location_query() -> None:
     status, body = _request_json(
-        "GET", "/conversations?location=%20antwerpen%20&limit=200"
+        "GET",
+        "/conversations?location=%20antwerpen%20&limit=200",
+        headers=_base_headers(_read_api_key()),
     )
     assert status == 200, status
     assert isinstance(body, list), type(body)
@@ -108,6 +128,7 @@ def _assert_conversations_date_query() -> None:
     status, body = _request_json(
         "GET",
         "/conversations?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z&limit=200",
+        headers=_base_headers(_read_api_key()),
     )
     assert status == 200, status
     assert isinstance(body, list), type(body)

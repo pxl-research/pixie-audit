@@ -6,11 +6,16 @@ import pytest
 from fastapi import HTTPException
 
 from app.routers import events
+from app import settings
 from app.schemas import ContractEventIn
 from tests.fakes import FakeConnection, FakePool, make_request
 
 
-def test_post_event_persists_conversation_and_messages() -> None:
+def test_post_event_persists_conversation_and_messages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "AUDIT_INGEST_API_KEY", "ingest-key")
+
     conn = FakeConnection()
     request = make_request(FakePool(conn=conn))
     event = ContractEventIn.model_validate(
@@ -26,7 +31,9 @@ def test_post_event_persists_conversation_and_messages() -> None:
         }
     )
 
-    out = asyncio.run(events.post_event(event=event, request=request, x_api_key=None))
+    out = asyncio.run(
+        events.post_event(event=event, request=request, x_api_key="ingest-key")
+    )
 
     assert out.status == "ok"
     assert len(conn.executed) == 4
@@ -47,7 +54,7 @@ def test_post_event_persists_conversation_and_messages() -> None:
 
 
 def test_post_event_rejects_invalid_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(events, "AUDIT_API_KEY", "expected-key")
+    monkeypatch.setattr(settings, "AUDIT_INGEST_API_KEY", "expected-key")
 
     conn = FakeConnection()
     request = make_request(FakePool(conn=conn))
