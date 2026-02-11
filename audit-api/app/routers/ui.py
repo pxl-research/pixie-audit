@@ -169,6 +169,21 @@ async def logs_view(request: Request) -> Response:
       gap: 8px;
     }
 
+    .conversation-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .conversation-group-title {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      padding: 4px 4px 0;
+    }
+
     .conversation {
       padding: 12px;
       border-radius: 12px;
@@ -349,11 +364,59 @@ async def logs_view(request: Request) -> Response:
       timeStyle: "short",
     });
 
+    const RECENCY_BUCKET_ORDER = ["today", "yesterday", "last_7_days", "older"];
+    const RECENCY_BUCKET_LABELS = {
+      today: "Vandaag",
+      yesterday: "Gisteren",
+      last_7_days: "Afgelopen 7 dagen",
+      older: "Ouder",
+    };
+
     function formatTime(value) {
       if (!value) return "-";
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return value;
       return formatter.format(date);
+    }
+
+    function normalizeLocation(value) {
+      if (typeof value !== "string") return "Onbekende locatie";
+      const normalized = value.trim().replace(/\\s+/g, " ");
+      return normalized || "Onbekende locatie";
+    }
+
+    function parseTimestamp(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      return date;
+    }
+
+    function startOfLocalDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function resolveRecencyBucket(date) {
+      if (!date) return "older";
+      const dayDiff = Math.floor(
+        (startOfLocalDay(new Date()).getTime() - startOfLocalDay(date).getTime()) / 86400000,
+      );
+      if (dayDiff <= 0) return "today";
+      if (dayDiff === 1) return "yesterday";
+      if (dayDiff <= 7) return "last_7_days";
+      return "older";
+    }
+
+    function buildConversationView(conversation) {
+      const startedAtDate = parseTimestamp(conversation.started_at);
+      const startedAtMs = startedAtDate ? startedAtDate.getTime() : Number.NEGATIVE_INFINITY;
+      return {
+        conversation,
+        displayTitle: normalizeLocation(conversation.metadata && conversation.metadata.location),
+        displayTime: formatTime(conversation.started_at),
+        bucketKey: resolveRecencyBucket(startedAtDate),
+        startedAtMs,
+      };
     }
 
     function setStatus(text) {
@@ -430,15 +493,17 @@ async def logs_view(request: Request) -> Response:
     function renderList() {
       listEl.innerHTML = "";
       const query = filterEl.value.trim().toLowerCase();
-      const filtered = state.conversations.filter((item) => {
-        if (!query) return true;
-        return (
-          item.id.toLowerCase().includes(query) ||
-          (item.profile || "").toLowerCase().includes(query)
-        );
-      });
+      const filteredViews = state.conversations
+        .map((conversation) => buildConversationView(conversation))
+        .filter((view) => {
+          if (!query) return true;
+          return (
+            view.displayTitle.toLowerCase().includes(query) ||
+            view.displayTime.toLowerCase().includes(query)
+          );
+        });
 
-      if (!filtered.length) {
+      if (!filteredViews.length) {
         const empty = document.createElement("div");
         empty.className = "empty";
         empty.textContent = "Geen conversaties gevonden.";
@@ -446,27 +511,41 @@ async def logs_view(request: Request) -> Response:
         return;
       }
 
-      filtered.forEach((conv) => {
-        const row = document.createElement("div");
-        row.className = "conversation" + (conv.id === state.selectedId ? " active" : "");
-        row.addEventListener("click", () => selectConversation(conv));
+      RECENCY_BUCKET_ORDER.forEach((bucketKey) => {
+        const views = filteredViews
+          .filter((view) => view.bucketKey === bucketKey)
+          .sort((left, right) => right.startedAtMs - left.startedAtMs);
+        if (!views.length) return;
 
-        const title = document.createElement("div");
-        title.className = "title";
-        title.textContent = conv.profile || "(geen profiel)";
+        const group = document.createElement("section");
+        group.className = "conversation-group";
 
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        meta.textContent = `${formatTime(conv.started_at)} -> ${formatTime(conv.ended_at)}`;
+        const heading = document.createElement("div");
+        heading.className = "conversation-group-title";
+        heading.textContent = RECENCY_BUCKET_LABELS[bucketKey] || bucketKey;
+        group.appendChild(heading);
 
-        const id = document.createElement("div");
-        id.className = "meta";
-        id.textContent = conv.id;
+        views.forEach((view) => {
+          const row = document.createElement("div");
+          row.className =
+            "conversation" +
+            (view.conversation.id === state.selectedId ? " active" : "");
+          row.addEventListener("click", () => selectConversation(view.conversation));
 
-        row.appendChild(title);
-        row.appendChild(meta);
-        row.appendChild(id);
-        listEl.appendChild(row);
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = view.displayTitle;
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = view.displayTime;
+
+          row.appendChild(title);
+          row.appendChild(meta);
+          group.appendChild(row);
+        });
+
+        listEl.appendChild(group);
       });
     }
 
@@ -476,8 +555,8 @@ async def logs_view(request: Request) -> Response:
         metaEl.textContent = "Klik links om de messages te laden.";
         return;
       }
-      titleEl.textContent = conv.profile || "(geen profiel)";
-      metaEl.textContent = `${conv.id} - ${formatTime(conv.started_at)} -> ${formatTime(conv.ended_at)}`;
+      titleEl.textContent = normalizeLocation(conv.metadata && conv.metadata.location);
+      metaEl.textContent = `${formatTime(conv.started_at)} -> ${formatTime(conv.ended_at)} | ${conv.id}`;
     }
 
     function renderMessages(messages) {
