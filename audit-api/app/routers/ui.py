@@ -1,6 +1,9 @@
+import json
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from app import settings
 from app.auth import is_read_authenticated_request
 
 router = APIRouter()
@@ -11,6 +14,7 @@ async def logs_view(request: Request) -> Response:
     if not is_read_authenticated_request(request):
         return RedirectResponse(url="/login", status_code=303)
 
+    locations_json = json.dumps(settings.AUDIT_ALLOWED_LOCATIONS)
     html = """<!doctype html>
 <html lang="nl">
 <head>
@@ -126,6 +130,35 @@ async def logs_view(request: Request) -> Response:
       cursor: pointer;
       font-weight: 600;
       letter-spacing: 0.02em;
+    }
+
+    .location-options {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fffaf6;
+      max-height: 160px;
+      overflow: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .location-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 6px;
+      font-size: 14px;
+      border-radius: 8px;
+    }
+
+    .location-option:hover {
+      background: #fff3ea;
+    }
+
+    .hidden {
+      display: none;
     }
 
     .conversation-list {
@@ -260,8 +293,14 @@ async def logs_view(request: Request) -> Response:
     <section class="layout">
       <aside class="panel sidebar">
         <div class="filters">
-          <label for="server-location">Location (server filter)</label>
-          <input id="server-location" type="text" placeholder="Bijv. Antwerpen" />
+          <div id="server-location-options-wrap">
+            <label for="server-location-options">Locations (server filter)</label>
+            <div id="server-location-options" class="location-options"></div>
+          </div>
+          <div id="server-location-manual-wrap" class="hidden">
+            <label for="server-location-manual">Location (server filter)</label>
+            <input id="server-location-manual" type="text" placeholder="Bijv. Antwerpen" />
+          </div>
           <label for="server-from">Vanaf (server filter)</label>
           <input id="server-from" type="datetime-local" />
           <label for="server-to">Tot (server filter)</label>
@@ -284,13 +323,19 @@ async def logs_view(request: Request) -> Response:
   </div>
 
   <script>
+    const configuredLocations = __AUDIT_ALLOWED_LOCATIONS_JSON__;
+
     const state = {
       conversations: [],
       selectedId: null,
+      selectedLocations: new Set(),
     };
 
     const listEl = document.getElementById("conversation-list");
-    const serverLocationEl = document.getElementById("server-location");
+    const serverLocationOptionsWrapEl = document.getElementById("server-location-options-wrap");
+    const serverLocationOptionsEl = document.getElementById("server-location-options");
+    const serverLocationManualWrapEl = document.getElementById("server-location-manual-wrap");
+    const serverLocationManualEl = document.getElementById("server-location-manual");
     const serverFromEl = document.getElementById("server-from");
     const serverToEl = document.getElementById("server-to");
     const filterEl = document.getElementById("filter");
@@ -322,10 +367,56 @@ async def logs_view(request: Request) -> Response:
       return date.toISOString();
     }
 
+    function renderLocationFilters() {
+      state.selectedLocations.clear();
+      serverLocationOptionsEl.innerHTML = "";
+
+      if (!Array.isArray(configuredLocations) || configuredLocations.length === 0) {
+        serverLocationOptionsWrapEl.classList.add("hidden");
+        serverLocationManualWrapEl.classList.remove("hidden");
+        return;
+      }
+
+      serverLocationOptionsWrapEl.classList.remove("hidden");
+      serverLocationManualWrapEl.classList.add("hidden");
+
+      configuredLocations.forEach((location, index) => {
+        const option = document.createElement("label");
+        option.className = "location-option";
+        option.setAttribute("for", `server-location-option-${index}`);
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = location;
+        checkbox.id = `server-location-option-${index}`;
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            state.selectedLocations.add(location);
+          } else {
+            state.selectedLocations.delete(location);
+          }
+          loadConversations();
+        });
+
+        const text = document.createElement("span");
+        text.textContent = location;
+
+        option.appendChild(checkbox);
+        option.appendChild(text);
+        serverLocationOptionsEl.appendChild(option);
+      });
+    }
+
     function conversationsUrl() {
       const params = new URLSearchParams({ limit: "200" });
-      const location = serverLocationEl.value.trim();
-      if (location) params.set("location", location);
+      if (configuredLocations.length > 0) {
+        Array.from(state.selectedLocations)
+          .sort((a, b) => a.localeCompare(b, "nl-BE"))
+          .forEach((location) => params.append("location", location));
+      } else {
+        const location = serverLocationManualEl.value.trim();
+        if (location) params.append("location", location);
+      }
 
       const fromIso = localDateTimeToIso(serverFromEl.value);
       if (fromIso) params.set("from", fromIso);
@@ -486,13 +577,17 @@ async def logs_view(request: Request) -> Response:
 
     document.getElementById("refresh").addEventListener("click", loadConversations);
     filterEl.addEventListener("input", renderList);
-    serverLocationEl.addEventListener("keydown", loadConversationsOnEnter);
+    if (serverLocationManualEl) {
+      serverLocationManualEl.addEventListener("keydown", loadConversationsOnEnter);
+    }
     serverFromEl.addEventListener("keydown", loadConversationsOnEnter);
     serverToEl.addEventListener("keydown", loadConversationsOnEnter);
 
+    renderLocationFilters();
     loadConversations();
   </script>
 </body>
 </html>
 """
+    html = html.replace("__AUDIT_ALLOWED_LOCATIONS_JSON__", locations_json)
     return HTMLResponse(content=html)

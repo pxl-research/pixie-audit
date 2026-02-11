@@ -38,7 +38,7 @@ Browser flow:
 `GET /conversations` ondersteunt deze filters:
 
 - `profile` (exacte match)
-- `location` (exacte match, case-insensitive, trim toegepast)
+- `location` (exacte match, case-insensitive, trim toegepast; herhaalbaar voor OR-filtering)
 - `from` (ISO8601 datetime, inclusieve ondergrens op `started_at`)
 - `to` (ISO8601 datetime, inclusieve bovengrens op `started_at`)
 - `limit` en `offset` voor paginatie
@@ -46,4 +46,10 @@ Browser flow:
 Voorbeelden:
 
 - `/conversations?location=antwerpen`
+- `/conversations?location=antwerpen&location=gent`
 - `/conversations?location=Antwerpen&from=2026-02-01T00:00:00Z&to=2026-02-28T23:59:59Z`
+
+Voor `/logs` kan je vooraf gedefinieerde filterlocaties tonen via:
+
+- `AUDIT_ALLOWED_LOCATIONS=antwerpen, gent` (of pipe-separated `antwerpen|gent`)
+- fallback: `ACTIVE_CLIENT_ALLOWED_LOCATIONS` (zelfde formaat)

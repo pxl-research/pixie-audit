@@ -124,6 +124,17 @@ def _assert_conversations_location_query() -> None:
     assert any(item.get("id") == CONVERSATION_ID for item in body), body
 
 
+def _assert_conversations_multi_location_query() -> None:
+    status, body = _request_json(
+        "GET",
+        "/conversations?location=gent&location=antwerpen&limit=200",
+        headers=_base_headers(_read_api_key()),
+    )
+    assert status == 200, status
+    assert isinstance(body, list), type(body)
+    assert any(item.get("id") == CONVERSATION_ID for item in body), body
+
+
 def _assert_conversations_date_query() -> None:
     status, body = _request_json(
         "GET",
@@ -140,6 +151,7 @@ def main() -> None:
     _assert_valid_event()
     _assert_invalid_event()
     _assert_conversations_location_query()
+    _assert_conversations_multi_location_query()
     _assert_conversations_date_query()
     _assert_messages_query()
     print("audit event contract smoke test passed")

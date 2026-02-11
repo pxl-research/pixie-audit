@@ -12,7 +12,7 @@ router = APIRouter(dependencies=[Depends(require_read_auth)])
 async def list_conversations(
     request: Request,
     profile: str | None = None,
-    location: str | None = None,
+    location: list[str] | None = Query(default=None),
     from_ts: datetime | None = Query(default=None, alias="from"),
     to_ts: datetime | None = Query(default=None, alias="to"),
     limit: int = 50,
@@ -26,11 +26,22 @@ async def list_conversations(
     if profile:
         params.append(profile)
         clauses.append(f"profile = ${len(params)}")
-    normalized_location = location.strip() if location else None
-    if normalized_location:
-        params.append(normalized_location)
+    normalized_locations: list[str] = []
+    seen_locations: set[str] = set()
+    for raw_location in location or []:
+        normalized_location = raw_location.strip()
+        if not normalized_location:
+            continue
+        key = normalized_location.casefold()
+        if key in seen_locations:
+            continue
+        seen_locations.add(key)
+        normalized_locations.append(key)
+
+    if normalized_locations:
+        params.append(normalized_locations)
         clauses.append(
-            f"lower(trim(metadata->>'location')) = lower(trim(${len(params)}))"
+            f"lower(trim(metadata->>'location')) = any(${len(params)}::text[])"
         )
     if from_ts:
         params.append(from_ts)

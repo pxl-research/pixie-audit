@@ -53,7 +53,7 @@ def test_list_conversations_applies_location_filter_with_trimmed_value() -> None
         conversations.list_conversations(
             request=request,
             profile=None,
-            location="  Antwerpen  ",
+            location=["  Antwerpen  "],
             from_ts=None,
             to_ts=None,
             limit=50,
@@ -63,10 +63,31 @@ def test_list_conversations_applies_location_filter_with_trimmed_value() -> None
 
     assert len(output) == 1
     sql, params = conn.fetch_calls[0]
-    assert "lower(trim(metadata->>'location')) = lower(trim($1))" in sql
+    assert "lower(trim(metadata->>'location')) = any($1::text[])" in sql
     assert "limit $2" in sql
     assert "offset $3" in sql
-    assert params == ("Antwerpen", 50, 0)
+    assert params == (["antwerpen"], 50, 0)
+
+
+def test_list_conversations_applies_multiple_locations_with_deduplication() -> None:
+    conn = FakeConnection(fetch_results=[[_conversation_row()]])
+    request = make_request(FakePool(conn=conn))
+
+    asyncio.run(
+        conversations.list_conversations(
+            request=request,
+            profile=None,
+            location=["Antwerpen", "  Gent ", "ANTWERPEN", "   "],
+            from_ts=None,
+            to_ts=None,
+            limit=50,
+            offset=0,
+        )
+    )
+
+    sql, params = conn.fetch_calls[0]
+    assert "lower(trim(metadata->>'location')) = any($1::text[])" in sql
+    assert params == (["antwerpen", "gent"], 50, 0)
 
 
 def test_list_conversations_ignores_blank_location_filter() -> None:
@@ -77,7 +98,7 @@ def test_list_conversations_ignores_blank_location_filter() -> None:
         conversations.list_conversations(
             request=request,
             profile=None,
-            location="   ",
+            location=["   "],
             from_ts=None,
             to_ts=None,
             limit=50,
@@ -102,7 +123,7 @@ def test_list_conversations_applies_combined_filters_in_expected_order() -> None
         conversations.list_conversations(
             request=request,
             profile="pixie-questioner",
-            location="Antwerpen",
+            location=["Antwerpen"],
             from_ts=from_ts,
             to_ts=to_ts,
             limit=42,
@@ -112,12 +133,12 @@ def test_list_conversations_applies_combined_filters_in_expected_order() -> None
 
     sql, params = conn.fetch_calls[0]
     assert "profile = $1" in sql
-    assert "lower(trim(metadata->>'location')) = lower(trim($2))" in sql
+    assert "lower(trim(metadata->>'location')) = any($2::text[])" in sql
     assert "started_at >= $3" in sql
     assert "started_at <= $4" in sql
     assert "limit $5" in sql
     assert "offset $6" in sql
-    assert params == ("pixie-questioner", "Antwerpen", from_ts, to_ts, 42, 3)
+    assert params == ("pixie-questioner", ["antwerpen"], from_ts, to_ts, 42, 3)
 
 
 def test_list_conversations_applies_from_only_filter() -> None:

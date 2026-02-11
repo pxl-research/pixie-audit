@@ -18,6 +18,28 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_locations(name: str, fallback_name: str | None = None) -> list[str]:
+    raw = os.getenv(name)
+    if (raw is None or not raw.strip()) and fallback_name:
+        raw = os.getenv(fallback_name)
+    if raw is None:
+        return []
+
+    normalized_raw = raw.replace("|", ",")
+    values: list[str] = []
+    seen: set[str] = set()
+    for token in normalized_raw.split(","):
+        value = " ".join(token.split())
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        values.append(value)
+    return values
+
+
 AUDIT_DB_URL = os.getenv("AUDIT_DB_URL", "")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
 AUDIT_INGEST_API_KEY = os.getenv("AUDIT_INGEST_API_KEY") or None
@@ -30,3 +52,6 @@ AUDIT_ALLOW_UNAUTHENTICATED_READS = _env_bool(
     "AUDIT_ALLOW_UNAUTHENTICATED_READS", False
 )
 AUDIT_SESSION_COOKIE_SECURE = _env_bool("AUDIT_SESSION_COOKIE_SECURE", True)
+AUDIT_ALLOWED_LOCATIONS = _env_locations(
+    "AUDIT_ALLOWED_LOCATIONS", fallback_name="ACTIVE_CLIENT_ALLOWED_LOCATIONS"
+)

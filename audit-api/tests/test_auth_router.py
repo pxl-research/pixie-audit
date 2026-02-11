@@ -23,6 +23,7 @@ def _configure_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "AUDIT_SESSION_TTL_SECONDS", 1800)
     monkeypatch.setattr(settings, "AUDIT_ALLOW_UNAUTHENTICATED_READS", False)
     monkeypatch.setattr(settings, "AUDIT_SESSION_COOKIE_SECURE", False)
+    monkeypatch.setattr(settings, "AUDIT_ALLOWED_LOCATIONS", [])
     auth._failed_login_attempts.clear()
 
 
@@ -146,3 +147,23 @@ def test_logs_is_accessible_with_session_cookie() -> None:
 
     assert response.status_code == 200
     assert "Pixie Audit" in response.text
+
+
+def test_logs_embeds_configured_location_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "AUDIT_ALLOWED_LOCATIONS", ["Antwerpen", "Gent"])
+
+    with _build_client() as client:
+        login = client.post(
+            "/auth/login",
+            data={"username": "audit-admin", "password": "super-secret"},
+            follow_redirects=False,
+        )
+        assert login.status_code == 303
+
+        response = client.get("/logs")
+
+    assert response.status_code == 200
+    assert 'const configuredLocations = ["Antwerpen", "Gent"];' in response.text
+    assert 'id="server-location-options"' in response.text
