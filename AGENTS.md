@@ -20,6 +20,7 @@ Voer geen grote refactors of gedragwijzigingen uit zonder expliciete vraag.
 Belangrijkste publieke contract:
 
 - `POST /events` volgt `pixie-contracts/contracts/audit/v1/openapi.yaml`
+- read endpoints (`/logs`, `/conversations`, `/messages`, `/summaries`) zijn auth-protected
 
 Contractinvarianten:
 
@@ -28,6 +29,12 @@ Contractinvarianten:
 - rollen zijn beperkt tot `user | assistant | summary`
 - `metadata` is optioneel en bevat enkel `location`
 - extra velden in contract payloads zijn niet toegestaan
+
+Auth-invarianten:
+
+- ingest gebruikt `AUDIT_INGEST_API_KEY`
+- read API gebruikt `AUDIT_READ_API_KEY` of geldige sessiecookie
+- `AUDIT_API_KEY` wordt niet meer gebruikt
 
 ---
 
@@ -69,6 +76,13 @@ Voer bij wijzigingen aan API/contract/DB ook een contract-smoke-test uit:
 docker compose exec -T audit-api uv run python -m tests.smoke.audit_event_contract
 ```
 
+Voer bij wijzigingen aan auth flow ook de auth-smoke-test uit:
+
+```bash
+# Implementatie: audit-api/tests/smoke/auth_login_flow.py
+docker compose exec -T audit-api uv run python -m tests.smoke.auth_login_flow
+```
+
 ---
 
 ## Testing Policy
@@ -83,7 +97,8 @@ Minimaal te behouden testfocus:
 - Contractvorm en validatie (`audit/v1`)
 - Adaptermapping contract -> intern model
 - Routergedrag voor persist/query flows
-- API-key gedrag (`401` bij foutieve sleutel)
+- ingest/read key-scheiding (`401` bij foutieve of verkeerde sleutel)
+- session-auth gedrag voor `/logs` en read-endpoints
 
 ---
 
@@ -129,7 +144,7 @@ Securityregels:
 - Geen secrets hardcoden (API keys, DSN’s, tokens)
 - Geen gevoelige payloadinhoud in logs
 - SQL altijd geparametriseerd (geen stringinterpolatie voor user input)
-- Geen verzwakking van API-key checks zonder expliciete opdracht
+- Geen verzwakking van ingest/read auth checks zonder expliciete opdracht
 - Inputvalidatie altijd via Pydantic modellen met expliciete constraints
 
 ---

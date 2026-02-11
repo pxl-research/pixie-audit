@@ -1,0 +1,99 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and start stack
+        run: docker compose up -d --build
+
+      - name: Health check
+        run: |
+          docker compose exec -T audit-api uv run python -c "import urllib.request, json; print(json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=5).read().decode()))"
+
+      - name: Compileall
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv run python -m compileall app tests"
+
+      - name: Black check
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run black --check app tests"
+
+      - name: Ruff check
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ruff check app tests"
+
+      - name: Ty check
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ty check"
+
+      - name: Pytest
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv run pytest"
+
+      - name: Contract smoke
+        run: |
+          docker compose exec -T audit-api uv run python -m tests.smoke.audit_event_contract
+
+      - name: Auth smoke
+        run: |
+          docker compose exec -T audit-api uv run python -m tests.smoke.auth_login_flow
+
+      - name: Security baseline (ruff S, bandit, pip-audit)
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ruff check app --select S"
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run bandit -r app"
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run pip-audit"
+
+      - name: Shutdown stack
+        if: always()
+        run: docker compose down -v
+
+  security:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and start stack
+        run: docker compose up -d --build
+
+      - name: Security baseline (ruff S, bandit, pip-audit)
+        run: |
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run ruff check app --select S"
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run bandit -r app"
+          docker compose run --rm audit-api sh -lc "uv sync --frozen --group dev && uv tool run pip-audit"
+
+      - name: Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest detect \
+            --source /repo \
+            --redact \
+            --no-banner \
+            --exit-code 1
+
+      - name: Trivy scan
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:latest fs \
+            --scanners vuln,misconfig,secret \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            .
+
+      - name: Shutdown stack
+        if: always()
+        run: docker compose down -v

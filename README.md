@@ -10,6 +10,29 @@ Standalone audit API + Postgres stack for logging and querying Pixie chat conver
 - `messages` (minstens 1 item met `role` in `user|assistant|summary` en `content`)
 - `metadata` (optioneel, enkel `location`)
 
+## Authentication Model
+
+Ingest en read access zijn gescheiden:
+
+- `POST /events` vereist `X-API-Key: <AUDIT_INGEST_API_KEY>`
+- read endpoints vereisen:
+  - geldige sessie-cookie (`audit_session`), of
+  - `X-API-Key: <AUDIT_READ_API_KEY>`
+
+Read endpoints:
+
+- `GET /logs`
+- `GET /conversations`
+- `GET /conversations/{conversation_id}/messages`
+- `GET /conversations/{conversation_id}/summaries`
+
+Browser flow:
+
+- `GET /login` toont loginpagina.
+- `POST /auth/login` zet sessie-cookie en redirectt naar `/logs`.
+- `POST /auth/logout` wist sessie-cookie.
+- `GET /auth/me` geeft huidige ingelogde user terug.
+
 ## Conversations Query Filters
 
 `GET /conversations` ondersteunt deze filters:
