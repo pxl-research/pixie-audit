@@ -181,7 +181,10 @@ def test_logs_uses_signal_first_grouped_list_rendering() -> None:
         response = client.get("/logs")
 
     assert response.status_code == 200
-    assert 'const RECENCY_BUCKET_ORDER = ["today", "yesterday", "last_7_days", "older"];' in response.text
+    assert (
+        'const RECENCY_BUCKET_ORDER = ["today", "yesterday", "last_7_days", "older"];'
+        in response.text
+    )
     assert 'today: "Vandaag"' in response.text
     assert 'yesterday: "Gisteren"' in response.text
     assert 'last_7_days: "Afgelopen 7 dagen"' in response.text
@@ -192,5 +195,8 @@ def test_logs_uses_signal_first_grouped_list_rendering() -> None:
     assert "id.textContent = conv.id" not in response.text
     assert "item.id.toLowerCase().includes(query)" not in response.text
     assert '(item.profile || "").toLowerCase().includes(query)' not in response.text
-    assert "fetch(`/conversations/${encodeURIComponent(conv.id)}/messages`)" in response.text
+    assert (
+        "fetch(`/conversations/${encodeURIComponent(conv.id)}/messages`)"
+        in response.text
+    )
     assert "| ${conv.id}" in response.text

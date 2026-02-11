@@ -1,7 +1,7 @@
 # Spec 004 - Conversation List Signal-First UX
 
 ## Status
-Accepted
+Implemented
 
 ## Beslissing Log
 
@@ -9,6 +9,25 @@ Accepted
 - Scope: enkel Spec 004 delivery
 - Groeperingstijdsbasis: browser lokale tijd
 - `conversation_id` zichtbaarheid: alleen detailpaneel
+
+## Implementatie
+
+- Geïmplementeerd op: 2026-02-11
+- Commits:
+  - `6fe7c74` (`docs(spec-004): accept scope and decisions`)
+  - `107b112` (`feat(logs-ui): group conversations by recency and location`)
+  - `f23ddfe` (`test(logs-ui): cover grouped signal-first list template`)
+
+## Implementatiebewijs
+
+- UI lijstweergave en recency-groepering:
+  - `audit-api/app/routers/ui.py`
+- Template regressietests:
+  - `audit-api/tests/test_auth_router.py`
+- Containerized checks uitgevoerd en groen:
+  - health, compileall, black, ruff, ty, pytest
+  - smoke: `audit_event_contract`, `auth_login_flow`
+  - security baseline: `ruff --select S`, bandit, pip-audit
 
 ## Probleem
 De huidige lijstweergave in `/logs` toont per item:
