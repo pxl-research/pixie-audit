@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.auth import require_ingest_auth
 from app.adapters.audit_v1 import adapt_contract_event
@@ -9,13 +9,15 @@ from app.schemas import ContractEventIn, EventOut
 router = APIRouter()
 
 
-@router.post("/events", response_model=EventOut)
+@router.post(
+    "/events",
+    response_model=EventOut,
+    dependencies=[Depends(require_ingest_auth)],
+)
 async def post_event(
     event: ContractEventIn,
     request: Request,
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> EventOut:
-    require_ingest_auth(request=request, x_api_key=x_api_key)
     adapted_event = adapt_contract_event(event)
 
     event_metadata = adapted_event.metadata or {}

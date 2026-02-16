@@ -129,11 +129,10 @@ def verify_login_credentials(username: str, password: str) -> bool:
 def _header_or_request_api_key(request: Request, x_api_key: str | None) -> str | None:
     if x_api_key:
         return x_api_key
-    headers = getattr(request, "headers", {}) or {}
-    if isinstance(headers, dict):
-        header_key = headers.get("x-api-key")
-    else:
-        header_key = headers.get("x-api-key")
+    headers = getattr(request, "headers", None)
+    if headers is None:
+        return None
+    header_key = headers.get("x-api-key")
     return header_key if header_key else None
 
 
