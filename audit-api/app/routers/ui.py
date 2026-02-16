@@ -132,6 +132,11 @@ async def logs_view(request: Request) -> Response:
       letter-spacing: 0.02em;
     }
 
+    .filters button:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
     .location-options {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -323,6 +328,7 @@ async def logs_view(request: Request) -> Response:
           <label for="filter">Zoek lokaal in lijst</label>
           <input id="filter" type="text" placeholder="Zoek op profiel of conversation id" />
           <button id="refresh" type="button">Ververs lijst</button>
+          <button id="export-all" type="button">Exporteer alles (.xlsx)</button>
         </div>
         <div class="conversation-list" id="conversation-list"></div>
       </aside>
@@ -355,9 +361,12 @@ async def logs_view(request: Request) -> Response:
     const serverToEl = document.getElementById("server-to");
     const filterEl = document.getElementById("filter");
     const statusEl = document.getElementById("status");
+    const exportButtonEl = document.getElementById("export-all");
     const messagesEl = document.getElementById("messages");
     const titleEl = document.getElementById("conversation-title");
     const metaEl = document.getElementById("conversation-meta");
+    const EXPORT_BUTTON_IDLE_TEXT = "Exporteer alles (.xlsx)";
+    const EXPORT_BUTTON_LOADING_TEXT = "Exporteren...";
 
     const formatter = new Intl.DateTimeFormat("nl-BE", {
       dateStyle: "medium",
@@ -421,6 +430,26 @@ async def logs_view(request: Request) -> Response:
 
     function setStatus(text) {
       statusEl.textContent = text;
+    }
+
+    function parseContentDispositionFilename(headerValue) {
+      if (!headerValue) return null;
+
+      const utf8Match = headerValue.match(/filename\\*=UTF-8''([^;]+)/i);
+      if (utf8Match && utf8Match[1]) {
+        try {
+          return decodeURIComponent(utf8Match[1]);
+        } catch (_error) {
+          return utf8Match[1];
+        }
+      }
+
+      const plainMatch = headerValue.match(/filename="?([^";]+)"?/i);
+      if (plainMatch && plainMatch[1]) {
+        return plainMatch[1];
+      }
+
+      return null;
     }
 
     function localDateTimeToIso(value) {
@@ -648,6 +677,43 @@ async def logs_view(request: Request) -> Response:
       }
     }
 
+    async function exportAllLogs() {
+      if (!exportButtonEl || exportButtonEl.disabled) return;
+
+      exportButtonEl.disabled = true;
+      exportButtonEl.textContent = EXPORT_BUTTON_LOADING_TEXT;
+      setStatus("Export voorbereiden...");
+
+      try {
+        const response = await fetch("/exports/logs.xlsx");
+        if (!response.ok) {
+          throw new Error(`Server status ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const filename =
+          parseContentDispositionFilename(response.headers.get("content-disposition")) ||
+          "pixie-audit-export.xlsx";
+
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+
+        setStatus("Export klaar");
+      } catch (error) {
+        console.error(error);
+        setStatus("Export mislukt. Probeer opnieuw.");
+      } finally {
+        exportButtonEl.disabled = false;
+        exportButtonEl.textContent = EXPORT_BUTTON_IDLE_TEXT;
+      }
+    }
+
     function loadConversationsOnEnter(event) {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -655,6 +721,7 @@ async def logs_view(request: Request) -> Response:
     }
 
     document.getElementById("refresh").addEventListener("click", loadConversations);
+    exportButtonEl.addEventListener("click", exportAllLogs);
     filterEl.addEventListener("input", renderList);
     if (serverLocationManualEl) {
       serverLocationManualEl.addEventListener("keydown", loadConversationsOnEnter);

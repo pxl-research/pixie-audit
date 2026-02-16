@@ -200,3 +200,25 @@ def test_logs_uses_signal_first_grouped_list_rendering() -> None:
         in response.text
     )
     assert "| ${conv.id}" in response.text
+
+
+def test_logs_renders_export_button_with_status_aware_download_flow() -> None:
+    with _build_client() as client:
+        login = client.post(
+            "/auth/login",
+            data={"username": "audit-admin", "password": "super-secret"},
+            follow_redirects=False,
+        )
+        assert login.status_code == 303
+
+        response = client.get("/logs")
+
+    assert response.status_code == 200
+    assert 'id="export-all"' in response.text
+    assert "Exporteer alles (.xlsx)" in response.text
+    assert 'const EXPORT_BUTTON_LOADING_TEXT = "Exporteren...";' in response.text
+    assert 'fetch("/exports/logs.xlsx")' in response.text
+    assert 'setStatus("Export voorbereiden...")' in response.text
+    assert 'setStatus("Export mislukt. Probeer opnieuw.")' in response.text
+    assert "exportButtonEl.disabled = true;" in response.text
+    assert "exportButtonEl.disabled = false;" in response.text
