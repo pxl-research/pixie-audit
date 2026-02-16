@@ -151,7 +151,10 @@ jobs:
 
       - name: Auth smoke
         run: |
-          docker compose exec -T audit-api uv run python -m tests.smoke.auth_login_flow
+          docker compose exec -T \
+            -e SMOKE_AUTH_USER="$SMOKE_AUTH_USER" \
+            -e SMOKE_AUTH_PASSWORD="$SMOKE_AUTH_PASSWORD" \
+            audit-api uv run python -m tests.smoke.auth_login_flow
 
       - name: Security baseline (ruff S, bandit, pip-audit)
         run: |
