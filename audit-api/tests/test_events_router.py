@@ -30,6 +30,7 @@ def test_post_event_persists_conversation_and_messages() -> None:
 
     first_sql, first_params = conn.executed[0]
     assert "insert into audit.conversations" in first_sql
+    assert "on conflict (id) do nothing" in first_sql
     assert first_params == (
         "session-123",
         "pixie-questioner",

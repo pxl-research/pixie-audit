@@ -36,6 +36,7 @@ def test_list_conversations_applies_profile_filter_and_bounds() -> None:
     assert len(output) == 1
     assert output[0].id == "session-123"
     assert output[0].profile == "pixie-questioner"
+    assert output[0].ended_at is None
 
     assert len(conn.fetch_calls) == 1
     sql, params = conn.fetch_calls[0]

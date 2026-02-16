@@ -64,6 +64,12 @@ Voorbeelden:
 
 `conversation_id` blijft string-based; IDs met `/` blijven toegestaan mits URL-encoding.
 
+## Conversation Lifecycle Semantics
+
+- De eerste ingest voor een `conversation_id` creëert de conversatierij.
+- Verdere ingest voor dezelfde `conversation_id` behoudt de bestaande conversatierij (`on conflict (id) do nothing`), inclusief bestaand `profile`.
+- `ended_at` wordt in de huidige ingest-flow niet gezet en kan dus `null` blijven in read responses en exports.
+
 Voor `/logs` kan je vooraf gedefinieerde filterlocaties tonen via:
 
 - `AUDIT_ALLOWED_LOCATIONS=antwerpen, gent` (of pipe-separated `antwerpen|gent`)
