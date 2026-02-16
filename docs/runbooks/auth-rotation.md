@@ -15,6 +15,16 @@ Deze runbook beschrijft de minimale veilige rotatie voor auth secrets in `pixie-
 2. Gebruik nooit plaintext wachtwoorden in repo of logs.
 3. Plan een kort deployvenster met rollback-optie.
 
+## Rate-limit hardening (verplicht in productie)
+
+1. De ingebouwde login limiter in `pixie-audit` is process-local (`ip+username`) en schaalt niet over meerdere workers/replicas.
+2. Configureer daarom extra rate limiting op je edge/proxy voor `POST /auth/login`.
+3. Richtlijn:
+   - burst limiter op korte periode (bijv. requests per minuut);
+   - aanvullende sliding window limiter per bron-IP;
+   - consistente `429` handling zonder response-body met secrets.
+4. Verifieer na deploy dat zowel app-level limiter als edge/proxy limiter actief zijn.
+
 ## 1) Ingest key rotatie
 
 1. Genereer nieuwe random key.

@@ -34,6 +34,12 @@ Browser flow:
 - `POST /auth/logout` wist sessie-cookie.
 - `GET /auth/me` geeft huidige ingelogde user terug.
 
+Login rate limiting:
+
+- `/auth/login` gebruikt app-level rate limiting op sleutel `ip+username`.
+- De limiter gebruikt in-process geheugen en is dus alleen servicebreed in single-process deployments.
+- In multi-worker of multi-replica setups is extra edge/proxy rate limiting op `/auth/login` verplicht.
+
 ## Conversations Query Filters
 
 `GET /conversations` ondersteunt deze filters:
