@@ -12,7 +12,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    environment: ci
+    environment: audit_env
     if: github.event_name != 'schedule'
     steps:
       - name: Checkout
@@ -108,7 +108,7 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
-    environment: ci
+    environment: audit_env
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
