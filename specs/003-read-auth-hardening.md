@@ -124,8 +124,7 @@ Gebruik een combinatie van:
    - aanvullende rate limit op reverse proxy.
 5. Auth failures loggen zonder secrets.
 6. Fail-closed gedrag:
-   - read auth staat standaard aan;
-   - expliciete dev override nodig om read auth uit te zetten.
+   - read auth staat altijd aan.
 
 ## Configuratie (Nieuwe Env Vars)
 
@@ -135,7 +134,6 @@ Gebruik een combinatie van:
 - `AUDIT_AUTH_PASSWORD_HASH`: Argon2id hash voor login verificatie.
 - `AUDIT_SESSION_SECRET`: secret voor session signing.
 - `AUDIT_SESSION_TTL_SECONDS`: default `1800`.
-- `AUDIT_ALLOW_UNAUTHENTICATED_READS`: default `false` (alleen lokaal expliciet `true`).
 - `AUDIT_SESSION_COOKIE_SECURE`: default `true`.
 
 ## Technisch Ontwerp
@@ -229,7 +227,7 @@ Geen PII of API keys in cookie payload.
 3. Tests (unit + integration + smoke auth cases).
 4. Documentatie update (`README.md`, `.env.example`, `AGENTS.md` indien nodig).
 5. Containerized validate + security gates.
-6. Deploy met credentials geconfigureerd en `AUDIT_ALLOW_UNAUTHENTICATED_READS=false`.
+6. Deploy met credentials geconfigureerd.
 
 ## Risico's
 

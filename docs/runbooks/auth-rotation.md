@@ -79,12 +79,3 @@ PY"
 4. Containerized smoke:
    - `tests.smoke.audit_event_contract`
    - `tests.smoke.auth_login_flow`
-
-## Incident break-glass
-
-Alleen bij incident:
-
-1. Zet tijdelijk `AUDIT_ALLOW_UNAUTHENTICATED_READS=true`.
-2. Herstel auth-configuratie.
-3. Zet onmiddellijk terug naar `false`.
-4. Leg incident en duur van override vast in incidentlog.

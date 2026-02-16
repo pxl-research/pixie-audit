@@ -21,7 +21,6 @@ def _configure_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(settings, "AUDIT_SESSION_SECRET", "session-secret")
     monkeypatch.setattr(settings, "AUDIT_SESSION_TTL_SECONDS", 1800)
-    monkeypatch.setattr(settings, "AUDIT_ALLOW_UNAUTHENTICATED_READS", False)
     monkeypatch.setattr(settings, "AUDIT_SESSION_COOKIE_SECURE", False)
     monkeypatch.setattr(settings, "AUDIT_ALLOWED_LOCATIONS", [])
     auth._failed_login_attempts.clear()

@@ -151,9 +151,6 @@ def _request_ip(request: Request) -> str:
 def is_read_authenticated_request(
     request: Request, x_api_key: str | None = None
 ) -> bool:
-    if settings.AUDIT_ALLOW_UNAUTHENTICATED_READS:
-        return True
-
     read_key = settings.AUDIT_READ_API_KEY
     candidate_key = _header_or_request_api_key(request, x_api_key)
     if read_key and candidate_key and secrets.compare_digest(candidate_key, read_key):
@@ -205,9 +202,6 @@ def validate_auth_configuration() -> None:
 
     if not settings.AUDIT_INGEST_API_KEY:
         raise RuntimeError("AUDIT_INGEST_API_KEY is required")
-
-    if settings.AUDIT_ALLOW_UNAUTHENTICATED_READS:
-        return
 
     required = {
         "AUDIT_READ_API_KEY": settings.AUDIT_READ_API_KEY,

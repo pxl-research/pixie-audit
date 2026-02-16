@@ -16,7 +16,6 @@ def _set_default_auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(settings, "AUDIT_SESSION_SECRET", "session-secret")
     monkeypatch.setattr(settings, "AUDIT_SESSION_TTL_SECONDS", 1800)
-    monkeypatch.setattr(settings, "AUDIT_ALLOW_UNAUTHENTICATED_READS", False)
     monkeypatch.setattr(settings, "AUDIT_SESSION_COOKIE_SECURE", True)
 
 
@@ -95,16 +94,3 @@ def test_validate_auth_configuration_requires_read_auth_values(
 
     with pytest.raises(RuntimeError, match="missing required auth configuration"):
         auth.validate_auth_configuration()
-
-
-def test_validate_auth_configuration_allows_break_glass(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _set_default_auth_env(monkeypatch)
-    monkeypatch.setattr(settings, "AUDIT_ALLOW_UNAUTHENTICATED_READS", True)
-    monkeypatch.setattr(settings, "AUDIT_READ_API_KEY", None)
-    monkeypatch.setattr(settings, "AUDIT_AUTH_USER", None)
-    monkeypatch.setattr(settings, "AUDIT_AUTH_PASSWORD_HASH", None)
-    monkeypatch.setattr(settings, "AUDIT_SESSION_SECRET", None)
-
-    auth.validate_auth_configuration()
