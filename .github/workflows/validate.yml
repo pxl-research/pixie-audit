@@ -9,29 +9,57 @@ on:
   schedule:
     - cron: "0 5 * * 1"
 
-env:
-  AUDIT_INGEST_API_KEY: ci-ingest-key
-  AUDIT_READ_API_KEY: ci-read-key
-  AUDIT_AUTH_USER: audit-admin
-  AUDIT_AUTH_PASSWORD_HASH: '$argon2id$v=19$m=65536,t=3,p=4$RJ/1h83ai2ojjIVhaXtzPQ$2OWU6ZTR92jiCRbzG3W4gMGxcpoMg92kQxSCBK6qzas'
-  AUDIT_SESSION_SECRET: ci-session-secret-not-for-production
-  AUDIT_SESSION_COOKIE_SECURE: "false"
-  SMOKE_AUTH_USER: audit-admin
-  SMOKE_AUTH_PASSWORD: audit-dev-password
-
 jobs:
   validate:
     runs-on: ubuntu-latest
+    environment: ci
     if: github.event_name != 'schedule'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare CI env file for compose
+      - name: Prepare CI env file from environment secrets
+        env:
+          CI_AUDIT_INGEST_API_KEY: ${{ secrets.AUDIT_INGEST_API_KEY }}
+          CI_AUDIT_READ_API_KEY: ${{ secrets.AUDIT_READ_API_KEY }}
+          CI_AUDIT_AUTH_USER: ${{ secrets.AUDIT_AUTH_USER }}
+          CI_AUDIT_AUTH_PASSWORD_HASH: ${{ secrets.AUDIT_AUTH_PASSWORD_HASH }}
+          CI_AUDIT_SESSION_SECRET: ${{ secrets.AUDIT_SESSION_SECRET }}
+          CI_SMOKE_AUTH_PASSWORD: ${{ secrets.SMOKE_AUTH_PASSWORD }}
         run: |
-          if [ ! -f .env ]; then
-            cp .env.example .env
-          fi
+          required=(
+            CI_AUDIT_INGEST_API_KEY
+            CI_AUDIT_READ_API_KEY
+            CI_AUDIT_AUTH_USER
+            CI_AUDIT_AUTH_PASSWORD_HASH
+            CI_AUDIT_SESSION_SECRET
+            CI_SMOKE_AUTH_PASSWORD
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required CI secret: ${name}"
+              exit 1
+            fi
+          done
+
+          cat > .env <<EOF
+          POSTGRES_DB=audit
+          POSTGRES_USER=audit
+          POSTGRES_PASSWORD=audit
+          AUDIT_DB_URL=postgres://audit:audit@audit-db:5432/audit
+          LOG_LEVEL=info
+          AUDIT_INGEST_API_KEY=${CI_AUDIT_INGEST_API_KEY}
+          AUDIT_READ_API_KEY=${CI_AUDIT_READ_API_KEY}
+          AUDIT_AUTH_USER=${CI_AUDIT_AUTH_USER}
+          AUDIT_AUTH_PASSWORD_HASH='${CI_AUDIT_AUTH_PASSWORD_HASH}'
+          AUDIT_SESSION_SECRET=${CI_AUDIT_SESSION_SECRET}
+          AUDIT_SESSION_TTL_SECONDS=1800
+          AUDIT_ALLOW_UNAUTHENTICATED_READS=false
+          AUDIT_SESSION_COOKIE_SECURE=false
+          EOF
+
+          echo "SMOKE_AUTH_USER=${CI_AUDIT_AUTH_USER}" >> "$GITHUB_ENV"
+          echo "SMOKE_AUTH_PASSWORD=${CI_SMOKE_AUTH_PASSWORD}" >> "$GITHUB_ENV"
 
       - name: Build and start stack
         run: docker compose up -d --build
@@ -80,16 +108,49 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
+    environment: ci
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare CI env file for compose
+      - name: Prepare CI env file from environment secrets
+        env:
+          CI_AUDIT_INGEST_API_KEY: ${{ secrets.AUDIT_INGEST_API_KEY }}
+          CI_AUDIT_READ_API_KEY: ${{ secrets.AUDIT_READ_API_KEY }}
+          CI_AUDIT_AUTH_USER: ${{ secrets.AUDIT_AUTH_USER }}
+          CI_AUDIT_AUTH_PASSWORD_HASH: ${{ secrets.AUDIT_AUTH_PASSWORD_HASH }}
+          CI_AUDIT_SESSION_SECRET: ${{ secrets.AUDIT_SESSION_SECRET }}
         run: |
-          if [ ! -f .env ]; then
-            cp .env.example .env
-          fi
+          required=(
+            CI_AUDIT_INGEST_API_KEY
+            CI_AUDIT_READ_API_KEY
+            CI_AUDIT_AUTH_USER
+            CI_AUDIT_AUTH_PASSWORD_HASH
+            CI_AUDIT_SESSION_SECRET
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required CI secret: ${name}"
+              exit 1
+            fi
+          done
+
+          cat > .env <<EOF
+          POSTGRES_DB=audit
+          POSTGRES_USER=audit
+          POSTGRES_PASSWORD=audit
+          AUDIT_DB_URL=postgres://audit:audit@audit-db:5432/audit
+          LOG_LEVEL=info
+          AUDIT_INGEST_API_KEY=${CI_AUDIT_INGEST_API_KEY}
+          AUDIT_READ_API_KEY=${CI_AUDIT_READ_API_KEY}
+          AUDIT_AUTH_USER=${CI_AUDIT_AUTH_USER}
+          AUDIT_AUTH_PASSWORD_HASH='${CI_AUDIT_AUTH_PASSWORD_HASH}'
+          AUDIT_SESSION_SECRET=${CI_AUDIT_SESSION_SECRET}
+          AUDIT_SESSION_TTL_SECONDS=1800
+          AUDIT_ALLOW_UNAUTHENTICATED_READS=false
+          AUDIT_SESSION_COOKIE_SECURE=false
+          EOF
 
       - name: Build and start stack
         run: docker compose up -d --build
