@@ -42,6 +42,20 @@ jobs:
             fi
           done
 
+          # Normalize copied hash secrets: remove CR/LF and optional wrapping quotes.
+          ci_password_hash="${CI_AUDIT_AUTH_PASSWORD_HASH//$'\r'/}"
+          ci_password_hash="${ci_password_hash//$'\n'/}"
+          if [[ "$ci_password_hash" == \'*\' && "$ci_password_hash" == *\' ]]; then
+            ci_password_hash="${ci_password_hash:1:${#ci_password_hash}-2}"
+          fi
+          if [[ "$ci_password_hash" == \"*\" && "$ci_password_hash" == *\" ]]; then
+            ci_password_hash="${ci_password_hash:1:${#ci_password_hash}-2}"
+          fi
+          if [ -z "$ci_password_hash" ]; then
+            echo "AUDIT_AUTH_PASSWORD_HASH resolves to empty after normalization"
+            exit 1
+          fi
+
           cat > .env <<EOF
           POSTGRES_DB=audit
           POSTGRES_USER=audit
@@ -51,7 +65,7 @@ jobs:
           AUDIT_INGEST_API_KEY=${CI_AUDIT_INGEST_API_KEY}
           AUDIT_READ_API_KEY=${CI_AUDIT_READ_API_KEY}
           AUDIT_AUTH_USER=${CI_AUDIT_AUTH_USER}
-          AUDIT_AUTH_PASSWORD_HASH='${CI_AUDIT_AUTH_PASSWORD_HASH}'
+          AUDIT_AUTH_PASSWORD_HASH='${ci_password_hash}'
           AUDIT_SESSION_SECRET=${CI_AUDIT_SESSION_SECRET}
           AUDIT_SESSION_TTL_SECONDS=1800
           AUDIT_ALLOW_UNAUTHENTICATED_READS=false
@@ -105,6 +119,36 @@ jobs:
         run: |
           docker compose exec -T audit-api uv run python -m tests.smoke.audit_event_contract
 
+      - name: Verify auth smoke credential pair
+        run: |
+          docker compose exec -T -e SMOKE_AUTH_PASSWORD="$SMOKE_AUTH_PASSWORD" audit-api uv run python - <<'PY'
+          import os
+          from argon2 import PasswordHasher
+          from argon2.exceptions import InvalidHashError, VerifyMismatchError
+          from app import settings
+
+          smoke_password = os.getenv("SMOKE_AUTH_PASSWORD", "")
+          auth_hash = settings.AUDIT_AUTH_PASSWORD_HASH or ""
+
+          if not smoke_password:
+              raise SystemExit("SMOKE_AUTH_PASSWORD is empty in workflow environment")
+          if not auth_hash:
+              raise SystemExit("AUDIT_AUTH_PASSWORD_HASH is empty in runtime settings")
+
+          try:
+              PasswordHasher().verify(auth_hash, smoke_password)
+          except InvalidHashError as exc:
+              raise SystemExit(
+                  "AUDIT_AUTH_PASSWORD_HASH has invalid format after compose env loading"
+              ) from exc
+          except VerifyMismatchError as exc:
+              raise SystemExit(
+                  "SMOKE_AUTH_PASSWORD does not match AUDIT_AUTH_PASSWORD_HASH"
+              ) from exc
+
+          print("Auth smoke credentials verify successfully.")
+          PY
+
       - name: Auth smoke
         run: |
           docker compose exec -T audit-api uv run python -m tests.smoke.auth_login_flow
@@ -149,6 +193,20 @@ jobs:
             fi
           done
 
+          # Normalize copied hash secrets: remove CR/LF and optional wrapping quotes.
+          ci_password_hash="${CI_AUDIT_AUTH_PASSWORD_HASH//$'\r'/}"
+          ci_password_hash="${ci_password_hash//$'\n'/}"
+          if [[ "$ci_password_hash" == \'*\' && "$ci_password_hash" == *\' ]]; then
+            ci_password_hash="${ci_password_hash:1:${#ci_password_hash}-2}"
+          fi
+          if [[ "$ci_password_hash" == \"*\" && "$ci_password_hash" == *\" ]]; then
+            ci_password_hash="${ci_password_hash:1:${#ci_password_hash}-2}"
+          fi
+          if [ -z "$ci_password_hash" ]; then
+            echo "AUDIT_AUTH_PASSWORD_HASH resolves to empty after normalization"
+            exit 1
+          fi
+
           cat > .env <<EOF
           POSTGRES_DB=audit
           POSTGRES_USER=audit
@@ -158,7 +216,7 @@ jobs:
           AUDIT_INGEST_API_KEY=${CI_AUDIT_INGEST_API_KEY}
           AUDIT_READ_API_KEY=${CI_AUDIT_READ_API_KEY}
           AUDIT_AUTH_USER=${CI_AUDIT_AUTH_USER}
-          AUDIT_AUTH_PASSWORD_HASH='${CI_AUDIT_AUTH_PASSWORD_HASH}'
+          AUDIT_AUTH_PASSWORD_HASH='${ci_password_hash}'
           AUDIT_SESSION_SECRET=${CI_AUDIT_SESSION_SECRET}
           AUDIT_SESSION_TTL_SECONDS=1800
           AUDIT_ALLOW_UNAUTHENTICATED_READS=false
