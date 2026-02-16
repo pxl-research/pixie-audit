@@ -9,6 +9,16 @@ on:
   schedule:
     - cron: "0 5 * * 1"
 
+env:
+  AUDIT_INGEST_API_KEY: ci-ingest-key
+  AUDIT_READ_API_KEY: ci-read-key
+  AUDIT_AUTH_USER: audit-admin
+  AUDIT_AUTH_PASSWORD_HASH: '$argon2id$v=19$m=65536,t=3,p=4$RJ/1h83ai2ojjIVhaXtzPQ$2OWU6ZTR92jiCRbzG3W4gMGxcpoMg92kQxSCBK6qzas'
+  AUDIT_SESSION_SECRET: ci-session-secret-not-for-production
+  AUDIT_SESSION_COOKIE_SECURE: "false"
+  SMOKE_AUTH_USER: audit-admin
+  SMOKE_AUTH_PASSWORD: audit-dev-password
+
 jobs:
   validate:
     runs-on: ubuntu-latest
