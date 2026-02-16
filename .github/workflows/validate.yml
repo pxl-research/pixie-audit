@@ -64,9 +64,22 @@ jobs:
       - name: Build and start stack
         run: docker compose up -d --build
 
-      - name: Health check
+      - name: Health check (retry)
         run: |
-          docker compose exec -T audit-api uv run python -c "import urllib.request, json; print(json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=5).read().decode()))"
+          attempts=30
+          for i in $(seq 1 "$attempts"); do
+            if docker compose exec -T audit-api uv run python -c "import urllib.request, json; print(json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=5).read().decode()))"; then
+              echo "Health check succeeded on attempt ${i}/${attempts}"
+              exit 0
+            fi
+            echo "Health check attempt ${i}/${attempts} failed, retrying in 2s..."
+            sleep 2
+          done
+
+          echo "Health check did not become ready within retry window."
+          docker compose ps
+          docker compose logs --no-color --tail=200 audit-db audit-api
+          exit 1
 
       - name: Compileall
         run: |
