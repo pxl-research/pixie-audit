@@ -50,6 +50,14 @@ Voorbeelden:
 - `/conversations?location=antwerpen&location=gent`
 - `/conversations?location=Antwerpen&from=2026-02-01T00:00:00Z&to=2026-02-28T23:59:59Z`
 
+`GET /conversations/{conversation_id}/messages` en
+`GET /conversations/{conversation_id}/summaries` ondersteunen:
+
+- `limit` (default `200`, server-side begrensd tot `1..1000`)
+- `offset` (default `0`, server-side begrensd tot minimum `0`)
+
+`conversation_id` blijft string-based; IDs met `/` blijven toegestaan mits URL-encoding.
+
 Voor `/logs` kan je vooraf gedefinieerde filterlocaties tonen via:
 
 - `AUDIT_ALLOWED_LOCATIONS=antwerpen, gent` (of pipe-separated `antwerpen|gent`)

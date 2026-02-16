@@ -69,14 +69,22 @@ async def list_conversations(
     "/conversations/{conversation_id:path}/messages",
     response_model=list[MessageOut],
 )
-async def list_messages(conversation_id: str, request: Request) -> list[MessageOut]:
+async def list_messages(
+    conversation_id: str,
+    request: Request,
+    limit: int = 200,
+    offset: int = 0,
+) -> list[MessageOut]:
+    limit = max(1, min(limit, 1000))
+    offset = max(0, offset)
     sql = (
         "select id::text as id, conversation_id, role, content, created_at, metadata "
-        "from audit.messages where conversation_id = $1 order by created_at asc"
+        "from audit.messages where conversation_id = $1 "
+        "order by created_at asc limit $2 offset $3"
     )
     pool = request.app.state.db
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, conversation_id)
+        rows = await conn.fetch(sql, conversation_id, limit, offset)
     return [MessageOut(**dict(row)) for row in rows]
 
 
@@ -84,13 +92,20 @@ async def list_messages(conversation_id: str, request: Request) -> list[MessageO
     "/conversations/{conversation_id:path}/summaries",
     response_model=list[SummaryOut],
 )
-async def list_summaries(conversation_id: str, request: Request) -> list[SummaryOut]:
+async def list_summaries(
+    conversation_id: str,
+    request: Request,
+    limit: int = 200,
+    offset: int = 0,
+) -> list[SummaryOut]:
+    limit = max(1, min(limit, 1000))
+    offset = max(0, offset)
     sql = (
         "select id::text as id, conversation_id, content, created_at, metadata "
         "from audit.messages where conversation_id = $1 and role = 'summary' "
-        "order by created_at asc"
+        "order by created_at asc limit $2 offset $3"
     )
     pool = request.app.state.db
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, conversation_id)
+        rows = await conn.fetch(sql, conversation_id, limit, offset)
     return [SummaryOut(**dict(row)) for row in rows]

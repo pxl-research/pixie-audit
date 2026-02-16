@@ -217,7 +217,28 @@ def test_list_messages_accepts_string_conversation_id() -> None:
 
     sql, params = conn.fetch_calls[0]
     assert "from audit.messages" in sql
-    assert params == ("session/123",)
+    assert "limit $2" in sql
+    assert "offset $3" in sql
+    assert params == ("session/123", 200, 0)
+
+
+def test_list_messages_clamps_pagination_bounds() -> None:
+    conn = FakeConnection(fetch_results=[[]])
+    request = make_request(FakePool(conn=conn))
+
+    asyncio.run(
+        conversations.list_messages(
+            conversation_id="session-123",
+            request=request,
+            limit=5000,
+            offset=-7,
+        )
+    )
+
+    sql, params = conn.fetch_calls[0]
+    assert "limit $2" in sql
+    assert "offset $3" in sql
+    assert params == ("session-123", 1000, 0)
 
 
 def test_list_summaries_queries_only_summary_rows() -> None:
@@ -231,4 +252,26 @@ def test_list_summaries_queries_only_summary_rows() -> None:
     assert output == []
     sql, params = conn.fetch_calls[0]
     assert "role = 'summary'" in sql
-    assert params == ("session-123",)
+    assert "limit $2" in sql
+    assert "offset $3" in sql
+    assert params == ("session-123", 200, 0)
+
+
+def test_list_summaries_clamps_pagination_bounds() -> None:
+    conn = FakeConnection(fetch_results=[[]])
+    request = make_request(FakePool(conn=conn))
+
+    asyncio.run(
+        conversations.list_summaries(
+            conversation_id="session-123",
+            request=request,
+            limit=0,
+            offset=-42,
+        )
+    )
+
+    sql, params = conn.fetch_calls[0]
+    assert "role = 'summary'" in sql
+    assert "limit $2" in sql
+    assert "offset $3" in sql
+    assert params == ("session-123", 1, 0)
