@@ -25,6 +25,7 @@ Read endpoints:
 - `GET /conversations`
 - `GET /conversations/{conversation_id}/messages`
 - `GET /conversations/{conversation_id}/summaries`
+- `GET /exports/logs.xlsx`
 
 Browser flow:
 
