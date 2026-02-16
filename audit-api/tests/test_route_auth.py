@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app import auth, settings
-from app.routers import conversations, events
+from app.routers import conversations, events, exports
 from tests.fakes import FakeConnection, FakePool
 
 
@@ -32,6 +32,7 @@ def _build_client(
     app.state.db = FakePool(conn=FakeConnection(fetch_results=fetch_results or []))
     app.include_router(events.router)
     app.include_router(conversations.router)
+    app.include_router(exports.router)
     return TestClient(app)
 
 
@@ -71,6 +72,24 @@ def test_summaries_requires_auth() -> None:
         response = client.get("/conversations/session-1/summaries")
 
     assert response.status_code == 401
+
+
+def test_exports_requires_auth() -> None:
+    with _build_client(fetch_results=[[]]) as client:
+        response = client.get("/exports/logs.xlsx")
+
+    assert response.status_code == 401
+
+
+def test_exports_accepts_read_api_key() -> None:
+    with _build_client(fetch_results=[[]]) as client:
+        response = client.get("/exports/logs.xlsx", headers={"X-API-Key": "read-key"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert "attachment; filename=" in response.headers["content-disposition"]
 
 
 def test_events_rejects_read_key() -> None:

@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth import validate_auth_configuration
 from app.db import close_db, init_db
-from app.routers import auth, conversations, events, ui
+from app.routers import auth, conversations, events, exports, ui
 from app.settings import AUDIT_DB_URL, LOG_LEVEL
 
 logging.basicConfig(level=LOG_LEVEL.upper())
@@ -48,5 +48,6 @@ async def health(request: Request):
 
 app.include_router(events.router)
 app.include_router(conversations.router)
+app.include_router(exports.router)
 app.include_router(ui.router)
 app.include_router(auth.router)
